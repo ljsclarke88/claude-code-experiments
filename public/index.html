@@ -8,42 +8,40 @@
   <script>
     var earth;
     var marker;
-    var satelliteLayer, hybridLayer, currentLayer;
+    var zoomAnimation = null;
 
     function initialize() {
       earth = new WE.map('earth_div', { background: '#000000' });
       earth.setView([20, 0], 1.5);
 
-      satelliteLayer = WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
+      WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
         attribution: '', tileSize: 256
       }).addTo(earth);
-      hybridLayer = WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 256
-      });
-      currentLayer = 'satellite';
 
       earth.on("click", function(event) {
         placeMarker(event.latlng);
         convertCoordinatesToWords(event.latlng.lat, event.latlng.lng);
+        cinemaZoom(event.latlng.lat, event.latlng.lng, 16, 14000);
       });
 
       marker = WE.marker([20, 0]).addTo(earth);
 
-      requestAnimationFrame(function monitorZoom() {
-        var zoom = earth.getZoom();
-        if (zoom >= 3 && currentLayer === 'satellite') {
-          satelliteLayer.remove();
-          hybridLayer.addTo(earth);
-          currentLayer = 'hybrid';
-        } else if (zoom < 3 && currentLayer === 'hybrid') {
-          hybridLayer.remove();
-          satelliteLayer.addTo(earth);
-          currentLayer = 'satellite';
-        }
-        requestAnimationFrame(monitorZoom);
-      });
-
       drawStars();
+    }
+
+    function cinemaZoom(lat, lng, targetZoom, duration) {
+      if (zoomAnimation) cancelAnimationFrame(zoomAnimation);
+      var startZoom = earth.getZoom();
+      var startTime = null;
+
+      function step(timestamp) {
+        if (!startTime) startTime = timestamp;
+        var t = Math.min((timestamp - startTime) / duration, 1);
+        var eased = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+        earth.setView([lat, lng], startZoom + (targetZoom - startZoom) * eased);
+        if (t < 1) zoomAnimation = requestAnimationFrame(step);
+      }
+      zoomAnimation = requestAnimationFrame(step);
     }
 
     function drawStars() {
