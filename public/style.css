@@ -11,53 +11,16 @@ html, body {
   height: 100vh;
   overflow: hidden;
   background: #000;
-}
-
-#stars {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-}
-
-#earth_div {
-  position: fixed;
-  inset: 0;
-  z-index: 1;
-}
-
-/* atmospheric limb glow + space vignette */
-#atmosphere {
-  position: fixed;
-  inset: 0;
-  z-index: 2;
-  pointer-events: none;
-  background: radial-gradient(ellipse at 50% 50%,
-    transparent 27%,
-    rgba(40, 100, 220, 0.06) 43%,
-    rgba(25, 70, 180, 0.16) 56%,
-    rgba(8, 25, 90, 0.42) 68%,
-    rgba(0, 5, 25, 0.76) 81%,
-    #000 94%
-  );
-}
-
-#ui {
-  position: fixed;
-  inset: 0;
-  z-index: 3;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: space-between;
-  pointer-events: none;
 }
 
+/* ── top panel ── */
 #header {
-  width: 100%;
+  flex-shrink: 0;
+  background: #000;
   text-align: center;
-  padding: 48px 40px 80px;
-  background: linear-gradient(to bottom, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.2) 80%, transparent 100%);
+  padding: 36px 40px 28px;
 }
 
 h1 {
@@ -67,25 +30,67 @@ h1 {
   letter-spacing: 0.45em;
   color: #fff;
   text-transform: uppercase;
-  margin: 0 0 16px;
+  margin: 0 0 14px;
 }
 
 p {
-  max-width: 440px;
+  max-width: 480px;
   margin: 0 auto;
   font-family: 'Cormorant Garamond', serif;
   font-size: 13px;
   font-style: italic;
   line-height: 1.85;
   letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.55);
+  color: rgba(255, 255, 255, 0.45);
   font-weight: 300;
 }
 
-#chat-log-wrap {
-  width: 100%;
-  padding: 80px 40px 56px;
-  background: linear-gradient(to top, rgba(0,0,0,0.92) 0%, rgba(0,0,0,0.7) 50%, rgba(0,0,0,0.2) 80%, transparent 100%);
+/* ── globe ── */
+#globe-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+#stars {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+}
+
+#earth_div {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+
+#atmosphere {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%,
+    transparent 28%,
+    rgba(40, 100, 220, 0.05) 44%,
+    rgba(10, 30, 100, 0.18) 58%,
+    rgba(0, 5, 30, 0.45) 72%,
+    rgba(0, 0, 8, 0.7) 85%,
+    #000 96%
+  );
+}
+
+/* ── bottom panel ── */
+#footer {
+  flex-shrink: 0;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 40px 32px;
+  min-height: 160px;
 }
 
 #chat-log {
@@ -94,9 +99,9 @@ p {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 140px;
 }
 
+/* ── states ── */
 .loading {
   font-family: 'Cormorant Garamond', serif;
   font-size: 14px;
@@ -116,9 +121,9 @@ p {
   font-family: 'Cormorant Garamond', serif;
   font-size: 11px;
   letter-spacing: 0.5em;
-  color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.25);
   text-transform: lowercase;
-  margin-bottom: 28px;
+  margin-bottom: 20px;
   text-align: center;
 }
 
@@ -135,7 +140,6 @@ p {
   color: #fff;
   line-height: 1.9;
   opacity: 0;
-  text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
 }
 
 .message__text:nth-child(1) { animation: fadeUp 1.1s ease forwards 0.2s; }
@@ -143,14 +147,8 @@ p {
 .message__text:nth-child(3) { animation: fadeUp 1.1s ease forwards 1.6s; }
 
 @keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(14px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .error {

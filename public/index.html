@@ -14,14 +14,14 @@
       earth = new WE.map('earth_div', { background: '#000000' });
       earth.setView([20, 0], 1.5);
 
-      WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
+      WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.png?key=RBZilnlcNkvvNnkaQ8ay', {
         attribution: '', tileSize: 256
       }).addTo(earth);
 
       earth.on("click", function(event) {
         placeMarker(event.latlng);
         convertCoordinatesToWords(event.latlng.lat, event.latlng.lng);
-        cinemaZoom(event.latlng.lat, event.latlng.lng, 16, 14000);
+        cinemaZoom(event.latlng.lat, event.latlng.lng, 16, 16000);
       });
 
       marker = WE.marker([20, 0]).addTo(earth);
@@ -33,47 +33,55 @@
       if (zoomAnimation) cancelAnimationFrame(zoomAnimation);
       var startZoom = earth.getZoom();
       var startTime = null;
+      var lastUpdate = 0;
 
       function step(timestamp) {
         if (!startTime) startTime = timestamp;
         var t = Math.min((timestamp - startTime) / duration, 1);
-        var eased = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
-        earth.setView([lat, lng], startZoom + (targetZoom - startZoom) * eased);
+        if (timestamp - lastUpdate >= 200 || t >= 1) {
+          var eased = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2, 3)/2;
+          earth.setView([lat, lng], startZoom + (targetZoom - startZoom) * eased);
+          lastUpdate = timestamp;
+        }
         if (t < 1) zoomAnimation = requestAnimationFrame(step);
       }
       zoomAnimation = requestAnimationFrame(step);
     }
 
     function drawStars() {
-      const canvas = document.getElementById('stars');
-      const ctx = canvas.getContext('2d');
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      for (let i = 0; i < 300; i++) {
-        const x = Math.random() * canvas.width;
-        const y = Math.random() * canvas.height;
-        const r = Math.random() < 0.85 ? Math.random() * 0.5 + 0.1 : Math.random() * 1.2 + 0.5;
-        const a = Math.random() * 0.6 + 0.15;
+      var canvas = document.getElementById('stars');
+      var wrap = document.getElementById('globe-wrap');
+      var ctx = canvas.getContext('2d');
+      canvas.width = wrap.offsetWidth;
+      canvas.height = wrap.offsetHeight;
+      for (var i = 0; i < 300; i++) {
+        var x = Math.random() * canvas.width;
+        var y = Math.random() * canvas.height;
+        var r = Math.random() < 0.85 ? Math.random() * 0.5 + 0.1 : Math.random() * 1.2 + 0.5;
+        var a = Math.random() * 0.6 + 0.15;
         ctx.beginPath();
         ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fillStyle = 'rgba(255,255,255,' + a + ')';
         ctx.fill();
       }
     }
   </script>
 </head>
 <body onload="initialize()">
-  <canvas id="stars"></canvas>
-  <div id="earth_div"></div>
-  <div id="atmosphere"></div>
-  <div id="ui">
-    <div id="header">
-      <h1>Haiku</h1>
-      <p>The practice of haiku is a way of dissolving feelings of separation from the world by experiencing the unity of our own nature and the nature of everything around us. Find a place that means something to you and say the haiku in a single breath.</p>
-    </div>
-    <div id="chat-log-wrap">
-      <div id="chat-log"></div>
-    </div>
+
+  <div id="header">
+    <h1>Haiku</h1>
+    <p>The practice of haiku is a way of dissolving feelings of separation from the world by experiencing the unity of our own nature and the nature of everything around us. Find a place that means something to you and say the haiku in a single breath.</p>
+  </div>
+
+  <div id="globe-wrap">
+    <canvas id="stars"></canvas>
+    <div id="earth_div"></div>
+    <div id="atmosphere"></div>
+  </div>
+
+  <div id="footer">
+    <div id="chat-log"></div>
   </div>
 
   <script>
@@ -87,18 +95,16 @@
     }
 
     function showLoading() {
-      const chatLog = document.getElementById("chat-log");
-      chatLog.innerHTML = '<div class="loading">composing</div>';
+      document.getElementById("chat-log").innerHTML = '<div class="loading">composing</div>';
     }
 
     function showError(msg) {
-      const chatLog = document.getElementById("chat-log");
-      chatLog.innerHTML = `<div class="error">${msg}</div>`;
+      document.getElementById("chat-log").innerHTML = '<div class="error">' + msg + '</div>';
     }
 
     async function convertCoordinatesToWords(latitude, longitude) {
       showLoading();
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
+      const url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + latitude + '&lon=' + longitude;
       try {
         const response = await fetch(url, {
           headers: { 'Accept-Language': 'en', 'User-Agent': 'HaikuApp/1.0' }
@@ -120,12 +126,11 @@
 
     async function sendMessage(words) {
       const chatLog = document.getElementById("chat-log");
-      const messageText = words.join(" ");
       try {
         const res = await fetch("/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: messageText }),
+          body: JSON.stringify({ message: words.join(" ") }),
         });
         const data = await res.json();
         if (data.error) throw new Error(data.error);
@@ -135,14 +140,13 @@
           .map(l => l.trim())
           .filter(l => l.length > 0);
         if (lines.length < 3) throw new Error("unexpected haiku format");
-        chatLog.innerHTML = `
-          <div class="words-label">${words.join(" · ")}</div>
-          <div class="message">
-            <div class="message__text">${lines[0]}</div>
-            <div class="message__text">${lines[1]}</div>
-            <div class="message__text">${lines[2]}</div>
-          </div>
-        `;
+        chatLog.innerHTML =
+          '<div class="words-label">' + words.join(" · ") + '</div>' +
+          '<div class="message">' +
+            '<div class="message__text">' + lines[0] + '</div>' +
+            '<div class="message__text">' + lines[1] + '</div>' +
+            '<div class="message__text">' + lines[2] + '</div>' +
+          '</div>';
       } catch (err) {
         console.error(err);
         showError("the haiku could not be written — " + err.message);
