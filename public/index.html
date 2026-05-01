@@ -10,8 +10,8 @@
 
     html, body {
       min-height: 100vh;
-      background: #000;
-      color: #fff;
+      background: #fff;
+      color: #111;
       font-family: 'Cormorant Garamond', serif;
     }
 
@@ -30,7 +30,7 @@
       font-weight: 300;
       letter-spacing: 0.4em;
       text-transform: uppercase;
-      color: rgba(255,255,255,0.4);
+      color: rgba(0,0,0,0.35);
     }
 
     .grid {
@@ -44,18 +44,18 @@
       flex-direction: column;
       gap: 16px;
       padding: 40px;
-      background: #0a0a0a;
+      background: #f5f5f5;
       text-decoration: none;
       color: inherit;
       transition: background 0.2s;
     }
 
-    .card:hover { background: #111; }
+    .card:hover { background: #ebebeb; }
 
     .card__number {
       font-size: 11px;
       letter-spacing: 0.4em;
-      color: rgba(255,255,255,0.2);
+      color: rgba(0,0,0,0.25);
     }
 
     .card h2 {
@@ -68,7 +68,7 @@
       font-size: 14px;
       font-style: italic;
       line-height: 1.8;
-      color: rgba(255,255,255,0.45);
+      color: rgba(0,0,0,0.45);
       font-weight: 300;
       flex: 1;
     }
@@ -76,15 +76,14 @@
     .card__link {
       font-size: 12px;
       letter-spacing: 0.3em;
-      color: rgba(255,255,255,0.3);
+      color: rgba(0,0,0,0.3);
       text-transform: uppercase;
     }
 
-    .card:hover .card__link { color: rgba(255,255,255,0.7); }
+    .card:hover .card__link { color: rgba(0,0,0,0.7); }
 
-    /* placeholder card style */
     .card--empty {
-      border: 1px dashed rgba(255,255,255,0.06);
+      border: 1px dashed rgba(0,0,0,0.1);
       background: transparent;
       cursor: default;
     }
@@ -92,7 +91,7 @@
     .card--empty:hover { background: transparent; }
 
     .card--empty h2,
-    .card--empty p { color: rgba(255,255,255,0.12); }
+    .card--empty p { color: rgba(0,0,0,0.18); }
   </style>
 </head>
 <body>
@@ -120,6 +119,12 @@
         <span class="card__number">03</span>
         <h2>—</h2>
         <p>Coming soon.</p>
+      </div>
+
+      <div class="card card--empty">
+        <span class="card__number">04</span>
+        <h2>—</h2>
+        <p>More coming soon.</p>
       </div>
 
     </div>
