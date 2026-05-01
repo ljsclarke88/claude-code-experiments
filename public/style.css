@@ -50,12 +50,14 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: space-between;
-  padding: 44px 40px 52px;
   pointer-events: none;
 }
 
 #header {
+  width: 100%;
   text-align: center;
+  padding: 44px 40px 52px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.72) 0%, rgba(0,0,0,0.3) 70%, transparent 100%);
 }
 
 h1 {
@@ -70,13 +72,20 @@ h1 {
 
 p {
   max-width: 440px;
+  margin: 0 auto;
   font-family: 'Cormorant Garamond', serif;
   font-size: 13px;
   font-style: italic;
   line-height: 1.85;
   letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.28);
+  color: rgba(255, 255, 255, 0.45);
   font-weight: 300;
+}
+
+#chat-log-wrap {
+  width: 100%;
+  padding: 0 40px 52px;
+  background: linear-gradient(to top, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0.25) 65%, transparent 100%);
 }
 
 #chat-log {
