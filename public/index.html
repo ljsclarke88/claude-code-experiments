@@ -2,154 +2,127 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Haiku</title>
-  <link rel="stylesheet" href="./style.css">
-  <script src="https://www.webglearth.com/v2/api.js"></script>
-  <script>
-    var earth;
-    var marker;
-    var satelliteLayer, hybridLayer, currentLayer;
+  <title>Lab</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-    function initialize() {
-      earth = new WE.map('earth_div', { background: '#000000' });
-      earth.setView([20, 0], 1.5);
-
-      satelliteLayer = WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 256
-      }).addTo(earth);
-      hybridLayer = WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.png?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 256
-      });
-      currentLayer = 'satellite';
-
-      earth.on("click", function(event) {
-        placeMarker(event.latlng);
-        convertCoordinatesToWords(event.latlng.lat, event.latlng.lng);
-      });
-
-      marker = WE.marker([20, 0]).addTo(earth);
-
-      requestAnimationFrame(function monitorZoom() {
-        var zoom = earth.getZoom();
-        if (zoom >= 4 && currentLayer === 'satellite') {
-          satelliteLayer.remove();
-          hybridLayer.addTo(earth);
-          currentLayer = 'hybrid';
-        } else if (zoom < 4 && currentLayer === 'hybrid') {
-          hybridLayer.remove();
-          satelliteLayer.addTo(earth);
-          currentLayer = 'satellite';
-        }
-        requestAnimationFrame(monitorZoom);
-      });
-
-      drawStars();
+    html, body {
+      min-height: 100vh;
+      background: #000;
+      color: #fff;
+      font-family: 'Cormorant Garamond', serif;
     }
 
-    function drawStars() {
-      var canvas = document.getElementById('stars');
-      var wrap = document.getElementById('globe-wrap');
-      var ctx = canvas.getContext('2d');
-      canvas.width = wrap.offsetWidth;
-      canvas.height = wrap.offsetHeight;
-      for (var i = 0; i < 300; i++) {
-        var x = Math.random() * canvas.width;
-        var y = Math.random() * canvas.height;
-        var r = Math.random() < 0.85 ? Math.random() * 0.5 + 0.1 : Math.random() * 1.2 + 0.5;
-        var a = Math.random() * 0.6 + 0.15;
-        ctx.beginPath();
-        ctx.arc(x, y, r, 0, Math.PI * 2);
-        ctx.fillStyle = 'rgba(255,255,255,' + a + ')';
-        ctx.fill();
-      }
+    main {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 80px 40px 100px;
     }
-  </script>
+
+    header {
+      margin-bottom: 80px;
+    }
+
+    header h1 {
+      font-size: 13px;
+      font-weight: 300;
+      letter-spacing: 0.4em;
+      text-transform: uppercase;
+      color: rgba(255,255,255,0.4);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 2px;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      padding: 40px;
+      background: #0a0a0a;
+      text-decoration: none;
+      color: inherit;
+      transition: background 0.2s;
+    }
+
+    .card:hover { background: #111; }
+
+    .card__number {
+      font-size: 11px;
+      letter-spacing: 0.4em;
+      color: rgba(255,255,255,0.2);
+    }
+
+    .card h2 {
+      font-size: 32px;
+      font-weight: 300;
+      letter-spacing: 0.1em;
+    }
+
+    .card p {
+      font-size: 14px;
+      font-style: italic;
+      line-height: 1.8;
+      color: rgba(255,255,255,0.45);
+      font-weight: 300;
+      flex: 1;
+    }
+
+    .card__link {
+      font-size: 12px;
+      letter-spacing: 0.3em;
+      color: rgba(255,255,255,0.3);
+      text-transform: uppercase;
+    }
+
+    .card:hover .card__link { color: rgba(255,255,255,0.7); }
+
+    /* placeholder card style */
+    .card--empty {
+      border: 1px dashed rgba(255,255,255,0.06);
+      background: transparent;
+      cursor: default;
+    }
+
+    .card--empty:hover { background: transparent; }
+
+    .card--empty h2,
+    .card--empty p { color: rgba(255,255,255,0.12); }
+  </style>
 </head>
-<body onload="initialize()">
+<body>
+  <main>
+    <header>
+      <h1>Lab</h1>
+    </header>
 
-  <div id="header">
-    <h1>Haiku</h1>
-    <p>The practice of haiku is a way of dissolving feelings of separation from the world by experiencing the unity of our own nature and the nature of everything around us. Find a place that means something to you and say the haiku in a single breath.</p>
-  </div>
+    <div class="grid">
 
-  <div id="globe-wrap">
-    <canvas id="stars"></canvas>
-    <div id="earth_div"></div>
-    <div id="atmosphere"></div>
-  </div>
+      <a class="card" href="/haiku">
+        <span class="card__number">01</span>
+        <h2>Haiku</h2>
+        <p>Click anywhere on Earth. A haiku returns — shaped by the spirit of that place, drawn from Japanese poetic tradition.</p>
+        <span class="card__link">Explore →</span>
+      </a>
 
-  <div id="footer">
-    <div id="chat-log"></div>
-  </div>
+      <div class="card card--empty">
+        <span class="card__number">02</span>
+        <h2>—</h2>
+        <p>Coming soon.</p>
+      </div>
 
-  <script>
-    function placeMarker(location) {
-      if (marker) {
-        marker.setLatLng([location.lat, location.lng]);
-      } else {
-        marker = WE.marker([location.lat, location.lng]).addTo(earth);
-      }
-      earth.panTo([location.lat, location.lng]);
-    }
+      <div class="card card--empty">
+        <span class="card__number">03</span>
+        <h2>—</h2>
+        <p>Coming soon.</p>
+      </div>
 
-    function showLoading() {
-      document.getElementById("chat-log").innerHTML = '<div class="loading">composing</div>';
-    }
-
-    function showError(msg) {
-      document.getElementById("chat-log").innerHTML = '<div class="error">' + msg + '</div>';
-    }
-
-    async function convertCoordinatesToWords(latitude, longitude) {
-      showLoading();
-      const url = 'https://nominatim.openstreetmap.org/reverse?format=json&lat=' + latitude + '&lon=' + longitude;
-      try {
-        const response = await fetch(url, {
-          headers: { 'Accept-Language': 'en', 'User-Agent': 'HaikuApp/1.0' }
-        });
-        const data = await response.json();
-        const addr = data.address || {};
-        const candidates = [
-          addr.city || addr.town || addr.village || addr.hamlet || addr.suburb,
-          addr.county || addr.state_district || addr.state,
-          addr.country
-        ].filter(Boolean);
-        if (candidates.length === 0) throw new Error("no place found");
-        sendMessage(candidates.slice(0, 3));
-      } catch (err) {
-        console.error(err);
-        showError("could not find this place");
-      }
-    }
-
-    async function sendMessage(words) {
-      const chatLog = document.getElementById("chat-log");
-      try {
-        const res = await fetch("/", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ message: words.join(" ") }),
-        });
-        const data = await res.json();
-        if (data.error) throw new Error(data.error);
-        if (!data.completion || !data.completion.content) throw new Error("empty response");
-        const lines = data.completion.content
-          .split("\n")
-          .map(l => l.trim())
-          .filter(l => l.length > 0);
-        if (lines.length < 3) throw new Error("unexpected haiku format");
-        chatLog.innerHTML =
-          '<div class="words-label">' + words.join(" · ") + '</div>' +
-          '<div class="message">' +
-            '<div class="message__text">' + lines[0] + '</div>' +
-            '<div class="message__text">' + lines[1] + '</div>' +
-            '<div class="message__text">' + lines[2] + '</div>' +
-          '</div>';
-      } catch (err) {
-        console.error(err);
-        showError("the haiku could not be written — " + err.message);
-      }
-    }
-  </script>
+    </div>
+  </main>
 </body>
 </html>

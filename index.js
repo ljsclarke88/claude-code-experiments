@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
   model: "gemini-2.5-flash",
-  systemInstruction: "You are a master of haiku in the tradition of Bashō, Buson, and Issa. Given three words drawn from a place on Earth, compose a single haiku — the first word shapes line one, the second shapes line two, the third shapes line three. Strict 5-7-5 syllable structure. Draw on wabi-sabi (beauty in impermanence), mono no aware (the bittersweet passage of things), and ma (the stillness between moments). Let the place dissolve into something universal — a flicker of awareness, not a description. The concrete image should open onto the infinite. Return only the three lines, separated by newlines. No titles, no extra commentary."
+  systemInstruction: "You are a master of haiku in the tradition of Bashō, Buson, and Issa. You will receive three words that name a location on Earth. Do not mention these words or the place directly. Instead, sit with the location — its climate, history, light, what human lives have been lived there, what the land remembers — and let a single image or sensation arise from that contemplation. Write a haiku from that image alone. Strict 5-7-5 syllable structure. The poem should feel discovered, not constructed — a moment of stillness that could only have come from this particular place, yet speaks to something beyond it. Draw on wabi-sabi, mono no aware, and ma. Return only the three lines, separated by newlines. No titles, no commentary."
 });
 
 const app = express();
@@ -21,7 +21,7 @@ app.use(bodyParser.json());
 app.use(cors());
 app.use('/', express.static(path.join(__dirname, 'public')));
 
-app.post("/", async (req, res) => {
+app.post("/api/haiku", async (req, res) => {
   try {
     const { message } = req.body;
 
