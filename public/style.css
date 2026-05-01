@@ -1,69 +1,96 @@
 @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap');
 
-* {
+*, *::before, *::after {
   box-sizing: border-box;
+  margin: 0;
+  padding: 0;
 }
 
 html, body {
-  margin: 0;
-  padding: 0;
-  min-height: 100%;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
   background: #000;
 }
 
-body {
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
-}
-
-main {
-  width: 100%;
-  max-width: 960px;
-  padding: 64px 40px 80px;
-}
-
-h1 {
-  text-align: center;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 52px;
-  font-weight: 300;
-  letter-spacing: 0.45em;
-  color: #ffffff;
-  text-transform: uppercase;
-  margin: 0 0 28px;
-}
-
-p {
-  text-align: center;
-  margin: 0 auto 64px;
-  max-width: 520px;
-  font-family: 'Cormorant Garamond', serif;
-  font-size: 17px;
-  font-style: italic;
-  line-height: 1.8;
-  letter-spacing: 0.03em;
-  color: rgba(255, 255, 255, 0.38);
-  font-weight: 300;
+#stars {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
 }
 
 #earth_div {
-  width: 100%;
-  height: 580px;
-  margin-bottom: 72px;
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
+/* atmospheric limb glow + space vignette */
+#atmosphere {
+  position: fixed;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: radial-gradient(ellipse at 50% 50%,
+    transparent 27%,
+    rgba(40, 100, 220, 0.06) 43%,
+    rgba(25, 70, 180, 0.16) 56%,
+    rgba(8, 25, 90, 0.42) 68%,
+    rgba(0, 5, 25, 0.76) 81%,
+    #000 94%
+  );
+}
+
+#ui {
+  position: fixed;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 44px 40px 52px;
+  pointer-events: none;
+}
+
+#header {
+  text-align: center;
+}
+
+h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 46px;
+  font-weight: 300;
+  letter-spacing: 0.45em;
+  color: #fff;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+
+p {
+  max-width: 440px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.85;
+  letter-spacing: 0.03em;
+  color: rgba(255, 255, 255, 0.28);
+  font-weight: 300;
 }
 
 #chat-log {
-  min-height: 180px;
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
+  min-height: 140px;
 }
 
 .loading {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 15px;
+  font-size: 14px;
   letter-spacing: 0.4em;
   color: rgba(255, 255, 255, 0.28);
   font-style: italic;
@@ -78,11 +105,11 @@ p {
 
 .words-label {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 12px;
+  font-size: 11px;
   letter-spacing: 0.5em;
-  color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.18);
   text-transform: lowercase;
-  margin-bottom: 44px;
+  margin-bottom: 28px;
   text-align: center;
 }
 
@@ -93,12 +120,13 @@ p {
 
 .message__text {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 300;
   letter-spacing: 0.06em;
-  color: #ffffff;
+  color: #fff;
   line-height: 1.9;
   opacity: 0;
+  text-shadow: 0 0 40px rgba(255, 255, 255, 0.3);
 }
 
 .message__text:nth-child(1) { animation: fadeUp 1.1s ease forwards 0.2s; }
@@ -118,7 +146,7 @@ p {
 
 .error {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 14px;
+  font-size: 13px;
   letter-spacing: 0.25em;
   color: rgba(255, 120, 100, 0.5);
   text-align: center;

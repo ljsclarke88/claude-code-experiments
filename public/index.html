@@ -4,24 +4,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Haiku</title>
   <link rel="stylesheet" href="./style.css">
-  <style>
-    html, body {
-      margin: 0;
-      padding: 0;
-      min-height: 100%;
-      background: #000;
-    }
-    body {
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-    }
-    #earth_div {
-      width: 100%;
-      height: 580px;
-      margin-bottom: 72px;
-    }
-  </style>
   <script src="https://www.webglearth.com/v2/api.js"></script>
   <script>
     var earth;
@@ -32,11 +14,11 @@
       earth = new WE.map('earth_div', { background: '#000000' });
       earth.setView([20, 0], 1.5);
 
-      satelliteLayer = WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}@2x.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 512
+      satelliteLayer = WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
+        attribution: '', tileSize: 256
       }).addTo(earth);
-      hybridLayer = WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}@2x.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 512
+      hybridLayer = WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
+        attribution: '', tileSize: 256
       });
       currentLayer = 'satellite';
 
@@ -60,16 +42,39 @@
         }
         requestAnimationFrame(monitorZoom);
       });
+
+      drawStars();
+    }
+
+    function drawStars() {
+      const canvas = document.getElementById('stars');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+      for (let i = 0; i < 300; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height;
+        const r = Math.random() < 0.85 ? Math.random() * 0.5 + 0.1 : Math.random() * 1.2 + 0.5;
+        const a = Math.random() * 0.6 + 0.15;
+        ctx.beginPath();
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255,255,255,${a})`;
+        ctx.fill();
+      }
     }
   </script>
 </head>
 <body onload="initialize()">
-  <main>
-    <h1>Haiku</h1>
-    <p>The practice of haiku is a way of dissolving feelings of separation from the world by experiencing the unity of our own nature and the nature of everything around us.<br><br>Find a place that means something to you and say the haiku in a single breath.</p>
-    <div id="earth_div"></div>
+  <canvas id="stars"></canvas>
+  <div id="earth_div"></div>
+  <div id="atmosphere"></div>
+  <div id="ui">
+    <div id="header">
+      <h1>Haiku</h1>
+      <p>The practice of haiku is a way of dissolving feelings of separation from the world by experiencing the unity of our own nature and the nature of everything around us. Find a place that means something to you and say the haiku in a single breath.</p>
+    </div>
     <div id="chat-log"></div>
-  </main>
+  </div>
 
   <script>
     function placeMarker(location) {
@@ -93,24 +98,19 @@
 
     async function convertCoordinatesToWords(latitude, longitude) {
       showLoading();
-
       const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`;
-
       try {
         const response = await fetch(url, {
           headers: { 'Accept-Language': 'en', 'User-Agent': 'HaikuApp/1.0' }
         });
         const data = await response.json();
-
         const addr = data.address || {};
         const candidates = [
           addr.city || addr.town || addr.village || addr.hamlet || addr.suburb,
           addr.county || addr.state_district || addr.state,
           addr.country
         ].filter(Boolean);
-
         if (candidates.length === 0) throw new Error("no place found");
-
         sendMessage(candidates.slice(0, 3));
       } catch (err) {
         console.error(err);
@@ -121,26 +121,20 @@
     async function sendMessage(words) {
       const chatLog = document.getElementById("chat-log");
       const messageText = words.join(" ");
-
       try {
         const res = await fetch("/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ message: messageText }),
         });
-
         const data = await res.json();
-
         if (data.error) throw new Error(data.error);
         if (!data.completion || !data.completion.content) throw new Error("empty response");
-
         const lines = data.completion.content
           .split("\n")
           .map(l => l.trim())
           .filter(l => l.length > 0);
-
         if (lines.length < 3) throw new Error("unexpected haiku format");
-
         chatLog.innerHTML = `
           <div class="words-label">${words.join(" · ")}</div>
           <div class="message">
@@ -149,7 +143,6 @@
             <div class="message__text">${lines[2]}</div>
           </div>
         `;
-        chatLog.scrollTop = chatLog.scrollHeight;
       } catch (err) {
         console.error(err);
         showError("the haiku could not be written — " + err.message);
