@@ -319,47 +319,48 @@
     // ── arms & tentacles (at head end, spreading forward in +X) ──────────────
     const tentGroups=[];
 
-    function buildArm(spreadAngle, length, isFeeder){
+    function buildArm(spreadZ, length, isFeeder){
+      // Arms hang DOWN (-Y). spreadZ = rotation.x to fan left/right in Z.
       const group =new THREE.Group();
-      const nSegs =isFeeder ? 6 : 5;
+      const nSegs =isFeeder ? 7 : 5;
       const segLen=length/nSegs;
-      const rad   =isFeeder ? 0.046 : 0.038;
+      const rad   =isFeeder ? 0.062 : 0.070; // thick
 
-      // Cylinder lying along X
-      const segGeo=new THREE.CylinderGeometry(rad*0.55,rad,segLen,6);
-      segGeo.rotateZ(Math.PI/2);       // cylinder axis → X
-      segGeo.translate(segLen*0.5,0,0); // pivot at x=0, extends to x=segLen
+      // CylinderGeometry is along Y by default — hangs downward naturally
+      const segGeo=new THREE.CylinderGeometry(rad*0.52,rad,segLen,8);
+      segGeo.translate(0,-segLen*0.5,0); // pivot at top, hangs to -segLen
 
       let parent=group;
       const joints=[];
       for(let i=0;i<nSegs;i++){
         const m=new THREE.Mesh(segGeo,skinMat);
-        m.position.x=i===0?0:segLen;
+        m.position.y=i===0?0:-segLen;
         parent.add(m); parent=m; joints.push(m);
       }
-      const {rZ:hZ}=getProfile(0.92);
-      group.position.set(2.62, Math.sin(spreadAngle)*0.14, Math.cos(spreadAngle)*(hZ*0.7));
-      group.rotation.y = -spreadAngle*0.28;
-      group.rotation.z =  Math.sin(spreadAngle)*0.18;
+
+      // All arms originate from the same central point under the head
+      group.position.set(2.32, -0.15, 0);
+      group.rotation.x = spreadZ;   // fans left/right
+      group.rotation.z = -0.12;     // slight forward lean
       cuttle.add(group);
-      tentGroups.push({group,joints,spreadAngle,isFeeder});
+      tentGroups.push({group,joints,spreadZ,isFeeder});
     }
 
     for(let i=0;i<8;i++){
-      const a=((i/7)-0.5)*Math.PI*0.82;
-      buildArm(a, 1.30+(i%3)*0.15, false);
+      const sz=((i/7)-0.5)*0.80; // -0.4 to +0.4 spread in Z
+      buildArm(sz, 1.40+(i%3)*0.14, false);
     }
-    buildArm(-0.12, 2.45, true);
-    buildArm( 0.12, 2.45, true);
+    buildArm(-0.06, 2.55, true);
+    buildArm( 0.06, 2.55, true);
 
     function updateTentacles(t,speed){
-      tentGroups.forEach(({group,joints,spreadAngle,isFeeder},idx)=>{
-        const sway=Math.sin(t*(0.80+speed*0.18)+idx*0.65)*0.11;
-        group.rotation.y=-spreadAngle*0.28+sway;
-        group.rotation.z=Math.sin(spreadAngle)*0.18+Math.sin(t*0.50+idx*0.4)*0.06;
+      tentGroups.forEach(({group,joints,spreadZ,isFeeder},idx)=>{
+        const sway=Math.sin(t*(0.72+speed*0.16)+idx*0.62)*0.07;
+        group.rotation.x=spreadZ+sway;
+        group.rotation.z=-0.12+Math.sin(t*0.44+idx*0.4)*0.05;
         joints.forEach((j,s)=>{
-          j.rotation.y=Math.sin(t*0.72+s*0.88+idx*0.50)*(0.06+s*0.018);
-          j.rotation.z=Math.sin(t*0.50+s*1.10+idx*0.3)*0.045;
+          j.rotation.x=Math.sin(t*0.65+s*0.82+idx*0.48)*(0.055+s*0.015);
+          j.rotation.z=Math.sin(t*0.47+s*1.08+idx*0.28)*0.040;
         });
       });
     }
@@ -447,7 +448,7 @@
     // ── state lerp ────────────────────────────────────────────────────────────
     const lerp  =(a,b,t)=>a+(b-a)*t;
     const lerpA =(a,b,t)=>a.map((v,i)=>lerp(v,b[i],t));
-    const L=0.011;
+    const L=0.022; // faster — emotion changes mostly complete within ~0.4s
 
     function transitionTo(key){
       const e=EMOTIONS[key]||EMOTIONS.neutral;
@@ -456,27 +457,32 @@
       tag.textContent=key; tag.classList.remove('fade-in'); void tag.offsetWidth; tag.classList.add('fade-in');
     }
 
-    // ── face position tracking (brightness centroid on downsampled frame) ─────
+    // ── face position tracking ────────────────────────────────────────────────
     let trackTargetX=0, trackTargetY=0, trackX=0, trackY=0;
     const trackCvs=document.createElement('canvas');
-    trackCvs.width=20; trackCvs.height=15;
+    trackCvs.width=24; trackCvs.height=18;
     const trackCtx=trackCvs.getContext('2d',{willReadFrequently:true});
 
     function sampleFace(){
       const video=document.getElementById('cam');
       if(!video.videoWidth) return;
-      trackCtx.drawImage(video,0,0,20,15);
-      const d=trackCtx.getImageData(0,0,20,15).data;
+      trackCtx.drawImage(video,0,0,24,18);
+      const d=trackCtx.getImageData(0,0,24,18).data;
       let sx=0,sy=0,sw=0;
-      for(let y=0;y<15;y++) for(let x=0;x<20;x++){
-        const i=(y*20+x)*4;
-        // skin-tone heuristic: warm, high-red, medium-green, low-blue
-        const w=Math.max(0, d[i]*0.55+d[i+1]*0.30-d[i+2]*0.15-48);
+      for(let y=0;y<18;y++) for(let x=0;x<24;x++){
+        const i=(y*24+x)*4;
+        const r=d[i],g=d[i+1],b=d[i+2];
+        const lum=(r+g+b)/3;
+        // Skip blown-out highlights and near-black backgrounds
+        if(lum<28||lum>238) continue;
+        // Face skin: warm (red > blue), moderately bright
+        const warmth=r-b;
+        const w=Math.max(0, warmth*0.6+lum*0.25-35);
         sx+=x*w; sy+=y*w; sw+=w;
       }
-      if(sw>200){
-        trackTargetX=(1-(sx/sw)/19)*2-1; // mirror front cam, normalize -1..+1
-        trackTargetY=((sy/sw)/14)*2-1;
+      if(sw>400){
+        trackTargetX=(1-(sx/sw)/23)*2-1; // mirror front cam, -1..+1
+        trackTargetY=((sy/sw)/17)*2-1;
       }
     }
 
@@ -496,13 +502,13 @@
       requestAnimationFrame(animate);
       const t=clock.getElapsedTime();
 
-      // state interpolation
-      cur.colorA=lerpA(cur.colorA,tgt.colorA,L*4.5);
-      cur.colorB=lerpA(cur.colorB,tgt.colorB,L*4.5);
-      cur.colorC=lerpA(cur.colorC,tgt.colorC,L*4.5);
-      cur.speed =lerp(cur.speed, tgt.speed, L);
-      cur.scale =lerp(cur.scale, tgt.scale, L);
-      cur.pulse =lerp(cur.pulse, tgt.pulse, L);
+      // state interpolation — colors snap quickly, parameters follow slightly slower
+      cur.colorA=lerpA(cur.colorA,tgt.colorA,L*5);
+      cur.colorB=lerpA(cur.colorB,tgt.colorB,L*5);
+      cur.colorC=lerpA(cur.colorC,tgt.colorC,L*5);
+      cur.speed =lerp(cur.speed, tgt.speed, L*2.5);
+      cur.scale =lerp(cur.scale, tgt.scale, L*2.5);
+      cur.pulse =lerp(cur.pulse, tgt.pulse, L*2.5);
 
       uniforms.uTime.value  =t;
       uniforms.uColorA.value.set(...cur.colorA);
@@ -514,18 +520,19 @@
       uniforms.uCamPos.value.copy(camera.position);
 
       // ── face tracking + idle motion ──
-      trackX+=(trackTargetX-trackX)*0.042;
-      trackY+=(trackTargetY-trackY)*0.042;
+      trackX+=(trackTargetX-trackX)*0.060;
+      trackY+=(trackTargetY-trackY)*0.060;
 
       // multi-frequency idle float
-      const idleY0=Math.sin(t*0.22)*0.055+Math.sin(t*0.35)*0.022;  // yaw
-      const idleP =Math.sin(t*0.18+1.1)*0.030;                       // pitch
-      const idleR =Math.sin(t*0.14)*0.018;                            // roll
+      const idleY0=Math.sin(t*0.22)*0.055+Math.sin(t*0.35)*0.022;
+      const idleP =Math.sin(t*0.18+1.1)*0.030;
+      const idleR =Math.sin(t*0.14)*0.018;
       const driftX=Math.sin(t*0.19)*0.14+Math.sin(t*0.31)*0.05;
       const driftY=Math.sin(t*0.26)*0.09+Math.sin(t*0.47)*0.04;
 
-      cuttle.rotation.y=0.28+trackX*0.58+idleY0;
-      cuttle.rotation.x=trackY*(-0.26)+idleP;
+      // trackX/Y drive ±75° yaw and ±35° pitch — wide enough to be clearly visible
+      cuttle.rotation.y=0.28+trackX*0.75+idleY0;
+      cuttle.rotation.x=trackY*(-0.35)+idleP;
       cuttle.rotation.z=idleR;
       cuttle.position.set(driftX, driftY, 0);
 
@@ -565,8 +572,8 @@
         video.srcObject=stream;
         document.getElementById('status').innerHTML='<span class="hint">reading your expression</span>';
         setInterval(sampleFace, 160);
-        setTimeout(analyseEmotion,1200);
-        setInterval(analyseEmotion,5500);
+        setTimeout(analyseEmotion,800);
+        setInterval(analyseEmotion,4000);
       }catch{
         document.getElementById('status').innerHTML='<span class="error">camera access denied — the cuttlefish waits</span>';
         transitionTo('calm');
