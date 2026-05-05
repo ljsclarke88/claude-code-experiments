@@ -35,63 +35,75 @@
 
   <script type="module">
     import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { OrbitControls }   from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer }  from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass }      from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+    import { OutputPass }      from 'three/addons/postprocessing/OutputPass.js';
 
-    // ── emotion palettes ──
+    // ── emotion palettes ──────────────────────────────────────────────────────
     const EMOTIONS = {
-      happy:     { colorA: [1.0, 0.72, 0.08], colorB: [1.0, 0.42, 0.04], colorC: [0.98, 0.95, 0.25], speed: 1.8,  scale: 3.2, pulse: 0.85 },
-      sad:       { colorA: [0.08, 0.18, 0.58], colorB: [0.18, 0.32, 0.68], colorC: [0.04, 0.08, 0.38], speed: 0.38, scale: 5.5, pulse: 0.18 },
-      angry:     { colorA: [0.92, 0.08, 0.04], colorB: [0.72, 0.28, 0.0],  colorC: [1.0,  0.0,  0.08], speed: 2.9,  scale: 2.2, pulse: 1.0  },
-      fearful:   { colorA: [0.28, 0.08, 0.38], colorB: [0.12, 0.04, 0.28], colorC: [0.48, 0.18, 0.52], speed: 2.4,  scale: 6.5, pulse: 0.9  },
-      surprised: { colorA: [0.15, 0.88, 0.98], colorB: [0.78, 0.94, 1.0],  colorC: [0.08, 0.58, 0.92], speed: 2.6,  scale: 1.8, pulse: 0.95 },
-      disgusted: { colorA: [0.32, 0.42, 0.08], colorB: [0.18, 0.28, 0.04], colorC: [0.48, 0.38, 0.12], speed: 0.55, scale: 4.2, pulse: 0.32 },
-      neutral:   { colorA: [0.22, 0.48, 0.42], colorB: [0.14, 0.36, 0.38], colorC: [0.32, 0.52, 0.48], speed: 0.75, scale: 4.8, pulse: 0.38 },
-      calm:      { colorA: [0.08, 0.48, 0.52], colorB: [0.12, 0.58, 0.48], colorC: [0.04, 0.32, 0.44], speed: 0.32, scale: 6.2, pulse: 0.22 },
-      excited:   { colorA: [0.92, 0.08, 0.58], colorB: [0.68, 0.04, 0.88], colorC: [1.0,  0.48, 0.08], speed: 3.2,  scale: 1.8, pulse: 1.0  },
-      anxious:   { colorA: [0.42, 0.38, 0.18], colorB: [0.28, 0.28, 0.12], colorC: [0.58, 0.48, 0.22], speed: 2.1,  scale: 5.8, pulse: 0.78 },
+      happy:     { colorA:[1.0,0.72,0.08], colorB:[1.0,0.42,0.04], colorC:[0.98,0.95,0.25], speed:1.8,  scale:3.2, pulse:0.85 },
+      sad:       { colorA:[0.08,0.18,0.58],colorB:[0.18,0.32,0.68],colorC:[0.04,0.08,0.38], speed:0.38, scale:5.5, pulse:0.18 },
+      angry:     { colorA:[0.92,0.08,0.04],colorB:[0.72,0.28,0.0], colorC:[1.0,0.0,0.08],   speed:2.9,  scale:2.2, pulse:1.0  },
+      fearful:   { colorA:[0.28,0.08,0.38],colorB:[0.12,0.04,0.28],colorC:[0.48,0.18,0.52], speed:2.4,  scale:6.5, pulse:0.9  },
+      surprised: { colorA:[0.15,0.88,0.98],colorB:[0.78,0.94,1.0], colorC:[0.08,0.58,0.92], speed:2.6,  scale:1.8, pulse:0.95 },
+      disgusted: { colorA:[0.32,0.42,0.08],colorB:[0.18,0.28,0.04],colorC:[0.48,0.38,0.12], speed:0.55, scale:4.2, pulse:0.32 },
+      neutral:   { colorA:[0.22,0.48,0.42],colorB:[0.14,0.36,0.38],colorC:[0.32,0.52,0.48], speed:0.75, scale:4.8, pulse:0.38 },
+      calm:      { colorA:[0.08,0.48,0.52],colorB:[0.12,0.58,0.48],colorC:[0.04,0.32,0.44], speed:0.32, scale:6.2, pulse:0.22 },
+      excited:   { colorA:[0.92,0.08,0.58],colorB:[0.68,0.04,0.88],colorC:[1.0,0.48,0.08],  speed:3.2,  scale:1.8, pulse:1.0  },
+      anxious:   { colorA:[0.42,0.38,0.18],colorB:[0.28,0.28,0.12],colorC:[0.58,0.48,0.22], speed:2.1,  scale:5.8, pulse:0.78 },
     };
 
-    // ── renderer ──
+    // ── renderer ──────────────────────────────────────────────────────────────
     const canvas = document.getElementById('three');
-    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.15;
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
+    renderer.toneMappingExposure = 1.1;
+    renderer.outputColorSpace = THREE.LinearSRGBColorSpace;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x000000);
-    scene.fog = new THREE.FogExp2(0x000305, 0.065);
+    scene.fog = new THREE.FogExp2(0x000510, 0.048);
 
-    const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 100);
-    camera.position.set(0, 0.5, 8);
+    const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 120);
+    camera.position.set(1.5, 1.8, 9);
 
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
-    controls.dampingFactor = 0.06;
-    controls.minDistance = 3.5;
-    controls.maxDistance = 16;
-    controls.target.set(0, 0.2, 0);
+    controls.dampingFactor = 0.055;
+    controls.minDistance = 3;
+    controls.maxDistance = 18;
+    controls.target.set(0, 0, 0);
     controls.autoRotate = true;
-    controls.autoRotateSpeed = 0.25;
+    controls.autoRotateSpeed = 0.18;
 
-    // ── skin shader ──
-    const vertexShader = `
+    // ── post-processing ───────────────────────────────────────────────────────
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(new THREE.Vector2(1, 1), 0.55, 0.5, 0.52);
+    composer.addPass(bloom);
+    composer.addPass(new OutputPass());
+
+    // ── skin shader ───────────────────────────────────────────────────────────
+    const skinVert = `
       varying vec3 vNormal;
+      varying vec3 vWorldNormal;
       varying vec3 vPosition;
       varying vec2 vUv;
       varying vec3 vWorldPos;
       void main() {
-        vNormal    = normalize(normalMatrix * normal);
-        vPosition  = position;
-        vUv        = uv;
-        vec4 wp    = modelMatrix * vec4(position, 1.0);
-        vWorldPos  = wp.xyz;
-        gl_Position = projectionMatrix * viewMatrix * wp;
+        vNormal      = normalize(normalMatrix * normal);
+        vWorldNormal = normalize(mat3(modelMatrix) * normal);
+        vPosition    = position;
+        vUv          = uv;
+        vec4 wp      = modelMatrix * vec4(position, 1.0);
+        vWorldPos    = wp.xyz;
+        gl_Position  = projectionMatrix * viewMatrix * wp;
       }
     `;
 
-    const fragmentShader = `
+    const skinFrag = `
       precision highp float;
       uniform float uTime;
       uniform vec3  uColorA;
@@ -101,77 +113,120 @@
       uniform float uScale;
       uniform float uPulse;
       uniform vec3  uCamPos;
-      varying vec3  vNormal;
-      varying vec3  vPosition;
-      varying vec2  vUv;
-      varying vec3  vWorldPos;
 
+      varying vec3 vNormal;
+      varying vec3 vWorldNormal;
+      varying vec3 vPosition;
+      varying vec2 vUv;
+      varying vec3 vWorldPos;
+
+      // ── noise helpers ──
       vec2 hash2(vec2 p) {
-        p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
-        return fract(sin(p) * 43758.5453);
+        p = vec2(dot(p,vec2(127.1,311.7)), dot(p,vec2(269.5,183.3)));
+        return fract(sin(p)*43758.5453);
       }
+      float hash(vec2 p) { return fract(sin(dot(p,vec2(127.1,311.7)))*43758.5453); }
 
-      // Voronoi — returns distance to nearest cell centre
       float voronoi(vec2 x) {
-        vec2 n = floor(x), f = fract(x);
-        float d = 8.0;
-        for (int j = -1; j <= 1; j++) {
-          for (int i = -1; i <= 1; i++) {
-            vec2 g = vec2(float(i), float(j));
-            vec2 o = hash2(n + g);
-            o = 0.5 + 0.5 * sin(uTime * uSpeed * 0.35 + 6.283 * o);
-            d = min(d, length(g + o - f));
-          }
+        vec2 n=floor(x), f=fract(x);
+        float d=8.0;
+        for(int j=-1;j<=1;j++) for(int i=-1;i<=1;i++){
+          vec2 g=vec2(float(i),float(j));
+          vec2 o=hash2(n+g);
+          o=0.5+0.5*sin(uTime*uSpeed*0.38+6.283*o);
+          d=min(d,length(g+o-f));
         }
         return d;
       }
+      float cells(vec2 uv, float s){ return smoothstep(0.55,0.06,voronoi(uv*s)); }
 
-      float chromatophores(vec2 uv, float s) {
-        return smoothstep(0.52, 0.08, voronoi(uv * s));
+      // ── value noise for organic variation ──
+      float vnoise(vec2 p){
+        vec2 i=floor(p), f=fract(p);
+        f=f*f*(3.0-2.0*f);
+        float a=hash(i), b=hash(i+vec2(1,0)), c=hash(i+vec2(0,1)), d=hash(i+vec2(1,1));
+        return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
       }
-
-      float waveBands(vec3 pos, float t) {
-        float b = sin(pos.y * 5.5 + t * uSpeed * 1.4) * 0.5 + 0.5;
-        b += sin(pos.x * 3.8 + t * uSpeed * 0.75 + 1.2) * 0.22;
-        return clamp(b * 0.55, 0.0, 1.0);
+      float fbm(vec2 p){
+        float v=0.0,a=0.5;
+        for(int i=0;i<4;i++){ v+=a*vnoise(p); p*=2.1; a*=0.5; }
+        return v;
       }
 
       void main() {
+        float t       = uTime;
         vec3  norm    = normalize(vNormal);
+        vec3  wNorm   = normalize(vWorldNormal);
         vec3  viewDir = normalize(uCamPos - vWorldPos);
-        float fr      = pow(1.0 - max(dot(norm, viewDir), 0.0), 3.2);
+        float fr      = pow(1.0-max(dot(norm,viewDir),0.0), 3.0);
 
-        // animated chromatophore layers
-        vec2 uv1 = vec2(vUv.x * 1.8, vUv.y + uTime * uSpeed * 0.04);
-        vec2 uv2 = uv1 * 0.48 + vec2(0.31, 0.67);
-        float c1 = chromatophores(uv1, uScale);
-        float c2 = chromatophores(uv2, uScale * 2.1);
+        // ── anatomy base ──
+        float dorsal  = max(0.0,  dot(wNorm, vec3(0,1,0))); // top surface
+        float ventral = max(0.0, -dot(wNorm, vec3(0,1,0))); // belly
 
-        float waves   = waveBands(vPosition, uTime);
-        float heartbeat = uPulse * (sin(uTime * uSpeed * 2.6) * 0.5 + 0.5);
-        float pattern = clamp(c1 * 0.6 + c2 * 0.28 + waves * 0.32 + heartbeat * 0.22, 0.0, 1.0);
+        vec3 skinBase  = vec3(0.84, 0.77, 0.62);              // natural cream/tan
+        vec3 bellyCol  = vec3(0.62, 0.50, 0.78);              // purple belly
+        vec3 baseColor = mix(skinBase, bellyCol, ventral * 0.7);
 
-        vec3 col = mix(uColorA, uColorB, pattern);
-        col = mix(col, uColorC, c1 * heartbeat * 0.48);
+        // ── zebra stripes on dorsal ──
+        float stripeFreq = 16.0;
+        float stripe = smoothstep(0.38, 0.62, sin(vUv.y * stripeFreq + fbm(vUv*2.0)*0.8)*0.5+0.5);
+        vec3  stripCol = vec3(0.22, 0.14, 0.06);
+        baseColor = mix(baseColor, stripCol, stripe * dorsal * 0.78);
 
-        // iridescent edge
-        vec3 irid = mix(vec3(0.15, 0.85, 0.92), vec3(0.82, 0.18, 0.88),
-                        sin(fr * 3.1416 + uTime * 0.45) * 0.5 + 0.5);
-        col = mix(col, irid, fr * 0.38);
+        // ── fine papillae dots ──
+        float dots = cells(vUv + vec2(0.3,0.7), 28.0);
+        baseColor = mix(baseColor, baseColor * 1.35, dots * 0.18);
 
-        // rim glow
-        col += pow(1.0 - max(dot(norm, viewDir), 0.0), 2.8) * uColorC * 0.28;
+        // ── passing cloud (dark wave travels head→tail) ──
+        float cloud1 = smoothstep(0.52, 0.42, sin(vUv.y * 9.0  - t * uSpeed * 1.6)*0.5+0.5);
+        float cloud2 = smoothstep(0.52, 0.42, sin(vUv.y * 5.5  - t * uSpeed * 1.1 + 1.3)*0.5+0.5);
+        float cloud3 = smoothstep(0.52, 0.42, sin(vUv.y * 13.0 - t * uSpeed * 2.2 + 2.7)*0.5+0.5);
+        float cloudMask = (cloud1*0.5 + cloud2*0.35 + cloud3*0.3) * 0.55;
+        baseColor = mix(baseColor, baseColor * 0.28, cloudMask);
 
-        // soft depth darkening at poles
-        float ao = smoothstep(-1.0, 1.5, vPosition.y) * 0.28 + 0.72;
-        col *= ao;
+        // ── emotion chromatophores ──
+        vec2 skinUv = vec2(vUv.x * 2.0, vUv.y + t * uSpeed * 0.045);
+        float c1 = cells(skinUv, uScale);
+        float c2 = cells(skinUv * 0.42 + vec2(0.31, 0.68), uScale * 2.15);
 
-        gl_FragColor = vec4(col, 1.0);
+        // ── propagating ring display ──
+        float ring1 = smoothstep(0.4, 0.6, sin(vUv.y * 11.0 - t * uSpeed * 2.4)*0.5+0.5);
+        float ring2 = smoothstep(0.4, 0.6, sin(vUv.y * 7.0  - t * uSpeed * 1.85 + 0.9)*0.5+0.5);
+        float ringPat = ring1 * ring2;
+
+        // ── wave bands ──
+        float wave = sin(vPosition.y * 5.2 + t * uSpeed * 1.3) * 0.5 + 0.5;
+        wave += sin(vPosition.x * 3.8 + t * uSpeed * 0.75 + 1.1) * 0.22;
+
+        float pulse    = uPulse * (sin(t * uSpeed * 2.8) * 0.5 + 0.5);
+        float pattern  = clamp(c1*0.58 + c2*0.26 + wave*0.28 + ringPat*0.35*uPulse + pulse*0.18, 0.0, 1.0);
+
+        vec3 emCol = mix(uColorA, uColorB, c1);
+        emCol      = mix(emCol, uColorC, ringPat * pulse);
+        baseColor  = mix(baseColor, emCol, pattern * 0.72);
+
+        // ── iridescence ──
+        vec3 iridA = mix(uColorC, vec3(0.2, 0.85, 0.95), 0.4);
+        vec3 iridB = mix(uColorA, vec3(0.85, 0.25, 0.92), 0.3);
+        vec3 irid  = mix(iridA, iridB, sin(fr * 3.14159 + t * 0.5) * 0.5 + 0.5);
+        baseColor  = mix(baseColor, irid, fr * 0.42);
+
+        // belly iridescent sheen (always present)
+        baseColor  = mix(baseColor, bellyCol * 1.4, ventral * fr * 0.35);
+
+        // ── rim glow ──
+        baseColor += pow(1.0 - max(dot(norm,viewDir),0.0), 2.6) * uColorC * 0.32;
+
+        // ── soft AO ──
+        baseColor *= (smoothstep(-1.0, 1.5, vPosition.y) * 0.25 + 0.75);
+
+        gl_FragColor = vec4(baseColor, 1.0);
       }
     `;
 
-    let cur = { ...EMOTIONS.neutral, colorA: [...EMOTIONS.neutral.colorA], colorB: [...EMOTIONS.neutral.colorB], colorC: [...EMOTIONS.neutral.colorC] };
-    let tgt = { ...EMOTIONS.neutral, colorA: [...EMOTIONS.neutral.colorA], colorB: [...EMOTIONS.neutral.colorB], colorC: [...EMOTIONS.neutral.colorC] };
+    let cur = { ...EMOTIONS.neutral, colorA:[...EMOTIONS.neutral.colorA], colorB:[...EMOTIONS.neutral.colorB], colorC:[...EMOTIONS.neutral.colorC] };
+    let tgt = { ...EMOTIONS.neutral, colorA:[...EMOTIONS.neutral.colorA], colorB:[...EMOTIONS.neutral.colorB], colorC:[...EMOTIONS.neutral.colorC] };
 
     const uniforms = {
       uTime:   { value: 0 },
@@ -183,218 +238,313 @@
       uPulse:  { value: EMOTIONS.neutral.pulse },
       uCamPos: { value: new THREE.Vector3() },
     };
+    const skinMat = new THREE.ShaderMaterial({ vertexShader: skinVert, fragmentShader: skinFrag, uniforms, side: THREE.DoubleSide });
 
-    const skinMat = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms, side: THREE.DoubleSide });
+    // ── cuttlefish group (horizontal) ─────────────────────────────────────────
+    const cuttle = new THREE.Group();
+    cuttle.rotation.z = -Math.PI / 2;   // body Y→ becomes world X (horizontal)
+    cuttle.rotation.y = 0.35;            // three-quarter angle toward camera
+    cuttle.rotation.x = 0.08;            // slight nose-up
+    scene.add(cuttle);
 
     // ── mantle body ──
-    const profilePoints = [];
-    for (let i = 0; i <= 36; i++) {
-      const t = i / 36;
+    const profile = [];
+    for (let i = 0; i <= 38; i++) {
+      const t = i / 38;
       let r;
-      if (t < 0.12) {
-        r = 0.24 * Math.sin((t / 0.12) * Math.PI * 0.5);
-      } else if (t < 0.42) {
-        const s = (t - 0.12) / 0.30;
-        r = 0.24 + 0.74 * s;
-      } else if (t < 0.64) {
-        r = 0.98;
-      } else {
-        const s = (t - 0.64) / 0.36;
-        r = 0.98 * (1.0 - s * s * 0.98);
-      }
-      profilePoints.push(new THREE.Vector2(r, 2.3 - t * 4.6));
+      if      (t < 0.10) r = 0.20 * Math.sin((t/0.10) * Math.PI * 0.5);
+      else if (t < 0.38) { const s=(t-0.10)/0.28; r = 0.20 + 0.80*s; }
+      else if (t < 0.62) r = 1.00;
+      else               { const s=(t-0.62)/0.38; r = 1.00*(1.0-s*s*0.96); }
+      profile.push(new THREE.Vector2(r, 2.35 - t * 4.7));
     }
-    const mantleGeo = new THREE.LatheGeometry(profilePoints, 64);
-    const mantle = new THREE.Mesh(mantleGeo, skinMat);
-    scene.add(mantle);
+    const mantle = new THREE.Mesh(new THREE.LatheGeometry(profile, 72), skinMat);
+    mantle.scale.z = 0.72; // flatten slightly for natural shape
+    cuttle.add(mantle);
 
-    // ── fins (ribbon geometry along sides) ──
-    const FIN_SEGS = 44;
+    // ── fins ──
+    const FIN_SEGS = 46;
+
+    function getBodyR(t) {
+      if      (t < 0.10) return 0.20 * Math.sin((t/0.10)*Math.PI*0.5);
+      else if (t < 0.38) return 0.20 + 0.80*((t-0.10)/0.28);
+      else if (t < 0.62) return 1.00;
+      else               return 1.00*(1.0-Math.pow((t-0.62)/0.38,2)*0.96);
+    }
+
     function buildFin(side) {
-      const vCount = (FIN_SEGS + 1) * 2;
-      const positions = new Float32Array(vCount * 3);
-      const uvs       = new Float32Array(vCount * 2);
-      const indices   = [];
-
+      const verts = new Float32Array((FIN_SEGS+1)*2*3);
+      const uvs   = new Float32Array((FIN_SEGS+1)*2*2);
+      const idx   = [];
       for (let i = 0; i <= FIN_SEGS; i++) {
-        const t     = i / FIN_SEGS;
-        const angle = t * Math.PI;
-        const bodyR = getBodyRadius(t);
-        const finR  = bodyR + 0.48 + 0.22 * Math.sin(angle * 1.4);
-        const y     = 2.18 - t * 4.0;
-        const i0 = i * 2, i1 = i * 2 + 1;
-
-        positions.set([side * bodyR, y, 0], i0 * 3);
-        positions.set([side * finR,  y, 0], i1 * 3);
-        uvs.set([0, t], i0 * 2);
-        uvs.set([1, t], i1 * 2);
-
-        if (i < FIN_SEGS) {
-          indices.push(i0, i1, i0 + 2, i1, i1 + 2, i0 + 2);
-        }
+        const t  = i/FIN_SEGS;
+        const a  = t * Math.PI;
+        const bR = getBodyR(t);
+        const fR = bR + 0.52 + 0.24*Math.sin(a*1.3);
+        const y  = 2.30 - t*4.1;
+        const i0=i*2, i1=i*2+1;
+        verts.set([side*bR, y, 0], i0*3);
+        verts.set([side*fR, y, 0], i1*3);
+        uvs.set([0,t], i0*2); uvs.set([1,t], i1*2);
+        if (i<FIN_SEGS) idx.push(i0,i1,i0+2, i1,i1+2,i0+2);
       }
-
       const geo = new THREE.BufferGeometry();
-      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      geo.setAttribute('uv',       new THREE.BufferAttribute(uvs, 2));
-      geo.setIndex(indices);
+      geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+      geo.setAttribute('uv',       new THREE.BufferAttribute(uvs,2));
+      geo.setIndex(idx);
       geo.computeVertexNormals();
       const mesh = new THREE.Mesh(geo, skinMat);
-      mesh.userData = { side, positions };
-      scene.add(mesh);
+      mesh.userData.side = side;
+      cuttle.add(mesh);
       return mesh;
-    }
-
-    function getBodyRadius(t) {
-      if (t < 0.12) return 0.24 * Math.sin((t / 0.12) * Math.PI * 0.5);
-      if (t < 0.42) return 0.24 + 0.74 * ((t - 0.12) / 0.30);
-      if (t < 0.64) return 0.98;
-      return 0.98 * (1.0 - Math.pow((t - 0.64) / 0.36, 2) * 0.98);
     }
 
     const finL = buildFin(-1);
     const finR = buildFin(1);
 
-    function updateFins(time, speed) {
+    function updateFins(t, speed) {
       [finL, finR].forEach(fin => {
         const side = fin.userData.side;
         const pos  = fin.geometry.attributes.position;
         for (let i = 0; i <= FIN_SEGS; i++) {
-          const t     = i / FIN_SEGS;
-          const angle = t * Math.PI;
-          const bodyR = getBodyRadius(t);
-          const wave  = Math.sin(t * 6.5 - time * (1.4 + speed * 0.35)) * 0.14 * Math.sin(angle);
-          const finR  = bodyR + 0.48 + 0.22 * Math.sin(angle * 1.4) + wave * 0.6;
-          const y     = 2.18 - t * 4.0;
-          const i0 = i * 2, i1 = i * 2 + 1;
-          pos.setXYZ(i0, side * bodyR, y, wave * 0.25);
-          pos.setXYZ(i1, side * finR,  y, wave);
+          const s  = i/FIN_SEGS;
+          const a  = s*Math.PI;
+          const bR = getBodyR(s);
+          const wv = Math.sin(s*7.0 - t*(1.35+speed*0.32))*0.13*Math.sin(a);
+          const fR = bR + 0.52 + 0.24*Math.sin(a*1.3) + wv*0.55;
+          const y  = 2.30 - s*4.1;
+          pos.setXYZ(i*2,   side*bR, y, wv*0.2);
+          pos.setXYZ(i*2+1, side*fR, y, wv);
         }
         pos.needsUpdate = true;
       });
     }
 
-    // ── tentacles (segmented chains) ──
-    const tentacleGroups = [];
+    // ── tentacles (at HEAD end: body Y = +2.15) ──
+    const tentGroups = [];
 
-    function buildTentacle(spreadAngle, length, isFeeder) {
-      const group    = new THREE.Group();
-      const nSegs    = isFeeder ? 7 : 5;
-      const segLen   = length / nSegs;
-      const radius   = isFeeder ? 0.052 : 0.046;
-      const segGeo   = new THREE.CylinderGeometry(radius * 0.62, radius, segLen, 6, 1);
-      segGeo.translate(0, -segLen * 0.5, 0);
+    function buildTentacle(angleOffset, length, isFeeder) {
+      const group  = new THREE.Group();
+      const nSegs  = isFeeder ? 7 : 5;
+      const segLen = length / nSegs;
+      const rad    = isFeeder ? 0.050 : 0.044;
+      const segGeo = new THREE.CylinderGeometry(rad*0.6, rad, segLen, 6);
+      segGeo.translate(0, -segLen*0.5, 0);
 
-      const joints = [];
       let parent = group;
+      const joints = [];
       for (let i = 0; i < nSegs; i++) {
         const mesh = new THREE.Mesh(segGeo, skinMat);
-        mesh.position.y = i === 0 ? 0 : -segLen;
+        mesh.position.y = i===0 ? 0 : -segLen;
         parent.add(mesh);
         parent = mesh;
         joints.push(mesh);
       }
-
-      group.position.set(Math.sin(spreadAngle) * 0.11, -2.28, Math.cos(spreadAngle) * 0.11);
-      group.rotation.x = 0.18;
-      group.rotation.z = spreadAngle * 0.32;
-      scene.add(group);
-      tentacleGroups.push({ group, joints, spreadAngle, isFeeder });
+      // HEAD end = Y+ in cuttle space; tentacles hang forward (-Z)
+      group.position.set(Math.sin(angleOffset)*0.10, 2.18, Math.cos(angleOffset)*0.08 - 0.10);
+      group.rotation.x = -0.55; // lean forward
+      group.rotation.z = angleOffset*0.28;
+      cuttle.add(group);
+      tentGroups.push({ group, joints, angleOffset, isFeeder });
     }
 
     for (let i = 0; i < 8; i++) {
-      const a = ((i / 7) - 0.5) * Math.PI * 0.72;
-      buildTentacle(a, 1.4 + (i % 3) * 0.18, false);
+      const a = ((i/7)-0.5)*Math.PI*0.68;
+      buildTentacle(a, 1.35+(i%3)*0.16, false);
     }
-    buildTentacle(-0.14, 2.6, true);
-    buildTentacle( 0.14, 2.6, true);
+    buildTentacle(-0.13, 2.5, true);
+    buildTentacle( 0.13, 2.5, true);
 
-    function updateTentacles(time, speed) {
-      tentacleGroups.forEach(({ group, joints, spreadAngle, isFeeder }, idx) => {
-        const sway = Math.sin(time * (0.9 + speed * 0.22) + idx * 0.68) * 0.14;
-        group.rotation.z = spreadAngle * 0.32 + sway;
-        group.rotation.x = 0.18 + Math.sin(time * 0.6 + idx * 0.4) * 0.06;
-        joints.forEach((j, s) => {
-          j.rotation.z = Math.sin(time * 0.8 + s * 0.9  + idx * 0.55) * (0.08 + s * 0.025);
-          j.rotation.x = Math.sin(time * 0.55 + s * 1.1 + idx * 0.3)  * 0.055;
+    function updateTentacles(t, speed) {
+      tentGroups.forEach(({ group, joints, angleOffset, isFeeder }, idx) => {
+        const sway = Math.sin(t*(0.85+speed*0.2)+idx*0.65)*0.13;
+        group.rotation.z = angleOffset*0.28 + sway;
+        group.rotation.x = -0.55 + Math.sin(t*0.55+idx*0.4)*0.07;
+        joints.forEach((j,s) => {
+          j.rotation.z = Math.sin(t*0.75+s*0.85+idx*0.52)*(0.07+s*0.022);
+          j.rotation.x = Math.sin(t*0.50+s*1.1+idx*0.3)*0.05;
         });
       });
     }
 
-    // ── eyes ──
-    const eyeGeo   = new THREE.SphereGeometry(0.175, 20, 20);
-    const eyeMat   = new THREE.MeshStandardMaterial({ color: 0x060610, roughness: 0.08, metalness: 0.1 });
-    const pupilGeo = new THREE.TorusGeometry(0.085, 0.022, 8, 24);
-    const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1.0 });
+    // ── eyes (on Z sides of head in cuttle space) ──
+    const eyeGeo   = new THREE.SphereGeometry(0.17, 20, 20);
+    const eyeMat   = new THREE.MeshStandardMaterial({ color:0x060610, roughness:0.08, metalness:0.15 });
+    const pupilGeo = new THREE.TorusGeometry(0.082, 0.021, 8, 24);
+    const pupilMat = new THREE.MeshStandardMaterial({ color:0x000000, roughness:1.0 });
 
-    [-1, 1].forEach(side => {
+    [1,-1].forEach(side => {
       const eye   = new THREE.Mesh(eyeGeo, eyeMat);
       const pupil = new THREE.Mesh(pupilGeo, pupilMat);
-      eye.position.set(side * 0.68, 1.42, 0.52);
-      pupil.position.set(side * 0.68, 1.42, 0.66);
-      pupil.rotation.x = Math.PI * 0.5;
-      scene.add(eye, pupil);
+      eye.position.set(0, 1.40, side*0.70);
+      pupil.position.set(0, 1.40, side*0.86);
+      pupil.rotation.y = side > 0 ? 0 : Math.PI;
+      cuttle.add(eye, pupil);
     });
 
-    // ── lighting ──
-    scene.add(new THREE.AmbientLight(0x080818, 2.5));
+    // ── background ocean dome ─────────────────────────────────────────────────
+    const domeMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      uniforms: { uEmCol: { value: new THREE.Vector3(0.05,0.15,0.40) }, uTime: { value:0 } },
+      vertexShader:`
+        varying vec3 vPos;
+        void main(){ vPos=position; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }
+      `,
+      fragmentShader:`
+        uniform vec3  uEmCol;
+        uniform float uTime;
+        varying vec3  vPos;
+        void main(){
+          float up = dot(normalize(vPos),vec3(0,1,0))*0.5+0.5;
+          vec3 deep  = vec3(0.000, 0.012, 0.045);
+          vec3 mid   = vec3(0.000, 0.040, 0.115) + uEmCol*0.10;
+          vec3 col   = mix(deep, mid, pow(up, 0.55));
+          // subtle horizontal banding
+          col += vec3(0.0,0.008,0.022)*sin(vPos.y*0.4+uTime*0.08)*0.5;
+          gl_FragColor = vec4(col, 1.0);
+        }
+      `,
+    });
+    scene.add(new THREE.Mesh(new THREE.SphereGeometry(60, 16, 8), domeMat));
 
-    const key = new THREE.DirectionalLight(0x3377ff, 3.5);
-    key.position.set(3, 5, 5);
+    // ── caustic background plane ──────────────────────────────────────────────
+    const causticMat = new THREE.ShaderMaterial({
+      transparent: true,
+      depthWrite: false,
+      uniforms: { uTime:{value:0}, uEmCol:{value:new THREE.Vector3(0.05,0.2,0.55)} },
+      vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+      fragmentShader:`
+        uniform float uTime;
+        uniform vec3  uEmCol;
+        varying vec2  vUv;
+        float caustic(vec2 p, float t){
+          float c=0.0;
+          c+=sin(p.x*8.0+sin(p.y*6.2+t*0.31))*sin(p.y*7.1+sin(p.x*9.1-t*0.38));
+          c+=sin(p.x*11.0-t*0.47)*sin(p.y*9.5+t*0.55);
+          c+=sin((p.x+p.y)*7.5+t*0.28)*0.5;
+          return abs(c)*0.33;
+        }
+        void main(){
+          float c  = caustic(vUv*3.5, uTime*0.25);
+          float br = pow(1.0-clamp(c,0.0,1.0), 7.0)*0.12;
+          vec3 base= vec3(0.0,0.015,0.055)+uEmCol*0.04;
+          vec3 col = base + uEmCol*br*0.6 + vec3(0.25,0.6,0.9)*br*0.9;
+          gl_FragColor = vec4(col, 0.85);
+        }
+      `,
+    });
+    const causticPlane = new THREE.Mesh(new THREE.PlaneGeometry(28,18), causticMat);
+    causticPlane.position.set(0, -3, -5.5);
+    causticPlane.rotation.x = -0.18;
+    scene.add(causticPlane);
+
+    // ── god rays ─────────────────────────────────────────────────────────────
+    const godRayMats = [];
+
+    function buildGodRay(xPos, zPos, width, tilt, phase) {
+      const verts = new Float32Array([
+        0, 0, 0,
+       -width*0.5, -11, 0,
+        width*0.5, -11, 0,
+      ]);
+      const uvs = new Float32Array([0.5,1.0, 0.0,0.0, 1.0,0.0]);
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(verts,3));
+      geo.setAttribute('uv',       new THREE.BufferAttribute(uvs,2));
+      const mat = new THREE.ShaderMaterial({
+        transparent: true, depthWrite: false,
+        blending: THREE.AdditiveBlending, side: THREE.DoubleSide,
+        uniforms: { uColor:{value:new THREE.Vector3(0.12,0.42,0.72)}, uTime:{value:0}, uPhase:{value:phase} },
+        vertexShader:`varying vec2 vUv; void main(){ vUv=uv; gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0); }`,
+        fragmentShader:`
+          uniform vec3  uColor;
+          uniform float uTime, uPhase;
+          varying vec2  vUv;
+          void main(){
+            float alpha  = vUv.y * vUv.y * 0.13;
+            alpha *= sin(uTime*0.32+uPhase)*0.28+0.72;
+            alpha *= 1.0 - abs(vUv.x-0.5)*1.85;
+            alpha *= 0.9 + sin(uTime*0.8+uPhase*1.3)*0.1;
+            gl_FragColor = vec4(uColor, max(0.0,alpha));
+          }
+        `,
+      });
+      godRayMats.push(mat);
+      const mesh = new THREE.Mesh(geo, mat);
+      mesh.position.set(xPos, 7, zPos);
+      mesh.rotation.z = tilt;
+      mesh.rotation.x = -0.15;
+      scene.add(mesh);
+    }
+
+    buildGodRay(-4.5, -3, 1.6, -0.22, 0.0);
+    buildGodRay(-2.0, -4, 1.2, -0.08, 0.9);
+    buildGodRay( 0.5, -2, 1.8, -0.02, 1.8);
+    buildGodRay( 3.0, -4, 1.3,  0.14, 2.7);
+    buildGodRay( 5.5, -3, 1.0,  0.28, 3.6);
+    buildGodRay(-1.0, -5, 0.9, -0.12, 4.5);
+    buildGodRay( 2.0, -2, 1.4,  0.07, 5.4);
+
+    // ── lighting ─────────────────────────────────────────────────────────────
+    scene.add(new THREE.AmbientLight(0x08101e, 3.0));
+
+    const key = new THREE.DirectionalLight(0x4488ee, 3.8);
+    key.position.set(4, 6, 5);
     scene.add(key);
 
-    const fill = new THREE.DirectionalLight(0x220033, 1.8);
+    const fill = new THREE.DirectionalLight(0x220033, 2.0);
     fill.position.set(-5, -2, 3);
     scene.add(fill);
 
-    const rim = new THREE.DirectionalLight(0x00eebb, 2.2);
-    rim.position.set(0, 4, -7);
+    const rim = new THREE.DirectionalLight(0x00eebb, 2.4);
+    rim.position.set(0, 4, -8);
     scene.add(rim);
 
-    // animated caustic light
-    const caustic = new THREE.PointLight(0x0044aa, 2.0, 12);
-    caustic.position.set(0, 4, 2);
-    scene.add(caustic);
+    const causticLight = new THREE.PointLight(0x0055bb, 2.2, 14);
+    causticLight.position.set(0, 5, 2);
+    scene.add(causticLight);
 
-    // ── particles (plankton) ──
-    const N = 700;
-    const pp = new Float32Array(N * 3);
-    for (let i = 0; i < N; i++) {
-      pp[i*3]   = (Math.random() - 0.5) * 22;
-      pp[i*3+1] = (Math.random() - 0.5) * 14;
-      pp[i*3+2] = (Math.random() - 0.5) * 22;
+    // ── particles ─────────────────────────────────────────────────────────────
+    const P = 800;
+    const pp = new Float32Array(P*3);
+    for (let i=0; i<P; i++){
+      pp[i*3]   = (Math.random()-0.5)*26;
+      pp[i*3+1] = (Math.random()-0.5)*16;
+      pp[i*3+2] = (Math.random()-0.5)*26;
     }
     const pGeo = new THREE.BufferGeometry();
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pp, 3));
-    const pMat = new THREE.PointsMaterial({ color: 0x223355, size: 0.045, transparent: true, opacity: 0.55 });
-    scene.add(new THREE.Points(pGeo, pMat));
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pp,3));
+    scene.add(new THREE.Points(pGeo, new THREE.PointsMaterial({ color:0x1a2d44, size:0.04, transparent:true, opacity:0.5 })));
 
-    // ── state interpolation ──
-    const LERP = 0.012;
-    function lerp(a, b, t) { return a + (b - a) * t; }
-    function lerpArr(a, b, t) { return a.map((v, i) => lerp(v, b[i], t)); }
+    // ── state lerp ────────────────────────────────────────────────────────────
+    const L = 0.011;
+    const lerp   = (a,b,t) => a+(b-a)*t;
+    const lerpA  = (a,b,t) => a.map((v,i)=>lerp(v,b[i],t));
 
-    function transitionTo(emotionKey) {
-      const e = EMOTIONS[emotionKey] || EMOTIONS.neutral;
-      tgt = { ...e, colorA: [...e.colorA], colorB: [...e.colorB], colorC: [...e.colorC] };
+    function transitionTo(key) {
+      const e = EMOTIONS[key] || EMOTIONS.neutral;
+      tgt = { ...e, colorA:[...e.colorA], colorB:[...e.colorB], colorC:[...e.colorC] };
       const tag = document.getElementById('emotion-tag');
-      tag.textContent = emotionKey;
+      tag.textContent = key;
       tag.classList.remove('fade-in');
       void tag.offsetWidth;
       tag.classList.add('fade-in');
     }
 
-    // ── resize ──
+    // ── resize ────────────────────────────────────────────────────────────────
     function resize() {
       const wrap = document.getElementById('scene-wrap');
-      renderer.setSize(wrap.clientWidth, wrap.clientHeight);
-      camera.aspect = wrap.clientWidth / wrap.clientHeight;
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      renderer.setSize(w, h);
+      composer.setSize(w, h);
+      bloom.resolution.set(w, h);
+      camera.aspect = w/h;
       camera.updateProjectionMatrix();
     }
     resize();
     window.addEventListener('resize', resize);
 
-    // ── render loop ──
+    // ── render loop ───────────────────────────────────────────────────────────
     const clock = new THREE.Clock();
 
     function animate() {
@@ -402,12 +552,12 @@
       const t = clock.getElapsedTime();
 
       // interpolate state
-      cur.colorA = lerpArr(cur.colorA, tgt.colorA, LERP * 4);
-      cur.colorB = lerpArr(cur.colorB, tgt.colorB, LERP * 4);
-      cur.colorC = lerpArr(cur.colorC, tgt.colorC, LERP * 4);
-      cur.speed  = lerp(cur.speed,  tgt.speed,  LERP);
-      cur.scale  = lerp(cur.scale,  tgt.scale,  LERP);
-      cur.pulse  = lerp(cur.pulse,  tgt.pulse,  LERP);
+      cur.colorA = lerpA(cur.colorA, tgt.colorA, L*4.5);
+      cur.colorB = lerpA(cur.colorB, tgt.colorB, L*4.5);
+      cur.colorC = lerpA(cur.colorC, tgt.colorC, L*4.5);
+      cur.speed  = lerp(cur.speed,  tgt.speed,  L);
+      cur.scale  = lerp(cur.scale,  tgt.scale,  L);
+      cur.pulse  = lerp(cur.pulse,  tgt.pulse,  L);
 
       uniforms.uTime.value  = t;
       uniforms.uColorA.value.set(...cur.colorA);
@@ -418,34 +568,50 @@
       uniforms.uPulse.value = cur.pulse;
       uniforms.uCamPos.value.copy(camera.position);
 
-      // animate body
-      const breathe = 1.0 + Math.sin(t * (0.72 + cur.speed * 0.18)) * 0.022;
-      mantle.scale.set(breathe, 1.0, breathe * 0.88);
-      mantle.position.y = Math.sin(t * 0.38) * 0.12;
+      // body float + breathe
+      const breathe = 1.0 + Math.sin(t*(0.68+cur.speed*0.16))*0.020;
+      mantle.scale.set(breathe, 1.0, 0.72*breathe);
+      cuttle.position.y = Math.sin(t*0.36)*0.10;
 
-      // cascade float to fins and tentacles
-      [finL, finR].forEach(f => { f.position.y = mantle.position.y; });
-      tentacleGroups.forEach(({ group }) => { group.position.y = -2.28 + mantle.position.y; });
+      // fin/tentacle cascade
+      [finL, finR].forEach(f => { f.position.y = 0; });
+      tentGroups.forEach(({group}) => { /* position set at build time */ });
 
-      // caustic drift
-      caustic.position.x = Math.sin(t * 0.55) * 2.5;
-      caustic.position.z = Math.cos(t * 0.42) * 2.5 + 2;
-      caustic.intensity  = 1.8 + Math.sin(t * 1.8) * 0.6;
+      // caustic light drift
+      causticLight.position.x = Math.sin(t*0.52)*3.0;
+      causticLight.position.z = Math.cos(t*0.39)*3.0+2;
+      causticLight.intensity  = 1.9+Math.sin(t*2.1)*0.7;
+
+      // update background uniforms
+      domeMat.uniforms.uTime.value  = t;
+      domeMat.uniforms.uEmCol.value.set(cur.colorA[0]*0.12, cur.colorA[1]*0.18+0.08, cur.colorA[2]*0.20+0.30);
+      causticMat.uniforms.uTime.value = t;
+      causticMat.uniforms.uEmCol.value.set(cur.colorB[0]*0.4+0.02, cur.colorB[1]*0.3+0.12, cur.colorB[2]*0.4+0.30);
+
+      // god ray color shift
+      godRayMats.forEach((mat,i) => {
+        mat.uniforms.uTime.value = t;
+        mat.uniforms.uColor.value.set(
+          cur.colorC[0]*0.32+0.04,
+          cur.colorC[1]*0.25+0.22,
+          cur.colorC[2]*0.35+0.35
+        );
+      });
 
       updateFins(t, cur.speed);
       updateTentacles(t, cur.speed);
 
       controls.update();
-      renderer.render(scene, camera);
+      composer.render();
     }
     animate();
 
-    // ── camera + emotion detection ──
+    // ── camera + emotion ─────────────────────────────────────────────────────
     const video = document.getElementById('cam');
 
     async function startCamera() {
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 }, audio: false });
+        const stream = await navigator.mediaDevices.getUserMedia({ video:{ facingMode:'user', width:320, height:240 }, audio:false });
         video.srcObject = stream;
         document.getElementById('status').innerHTML = '<span class="hint">reading your expression</span>';
         setTimeout(analyseEmotion, 1200);
@@ -457,27 +623,22 @@
     }
 
     function captureFrame() {
-      const offscreen = document.createElement('canvas');
-      offscreen.width  = 320;
-      offscreen.height = 240;
-      offscreen.getContext('2d').drawImage(video, 0, 0, 320, 240);
-      return offscreen.toDataURL('image/jpeg', 0.72).split(',')[1];
+      const off = document.createElement('canvas');
+      off.width=320; off.height=240;
+      off.getContext('2d').drawImage(video,0,0,320,240);
+      return off.toDataURL('image/jpeg',0.72).split(',')[1];
     }
 
     async function analyseEmotion() {
       if (!video.videoWidth) return;
       try {
-        const res = await fetch('/api/emotion', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ frame: captureFrame() }),
-        });
+        const res  = await fetch('/api/emotion',{ method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({frame:captureFrame()}) });
         const data = await res.json();
         if (data.emotion && EMOTIONS[data.emotion]) {
           transitionTo(data.emotion);
           document.getElementById('status').innerHTML = '';
         }
-      } catch { /* keep current state */ }
+      } catch { /* keep current */ }
     }
 
     startCamera();
