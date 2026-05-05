@@ -8,19 +8,37 @@
   <script>
     var earth;
     var marker = null;
+    var satelliteLayer, hybridLayer, labelsVisible = false;
 
     function initialize() {
       earth = new WE.map('earth_div', { background: '#000000' });
       earth.setView([20, 0], 1.5);
 
-      WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.png?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 256
+      satelliteLayer = WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
+        attribution: '', tileSize: 256, opacity: 1
+      }).addTo(earth);
+
+      hybridLayer = WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.png?key=RBZilnlcNkvvNnkaQ8ay', {
+        attribution: '', tileSize: 256, opacity: 0
       }).addTo(earth);
 
       earth.on("click", function(event) {
-        document.getElementById('hint').style.opacity = '0';
         placeMarker(event.latlng);
         convertCoordinatesToWords(event.latlng.lat, event.latlng.lng);
+      });
+
+      requestAnimationFrame(function monitorZoom() {
+        var zoom = earth.getZoom();
+        if (zoom >= 2.5 && !labelsVisible) {
+          satelliteLayer.setOpacity(0);
+          hybridLayer.setOpacity(1);
+          labelsVisible = true;
+        } else if (zoom < 2.5 && labelsVisible) {
+          satelliteLayer.setOpacity(1);
+          hybridLayer.setOpacity(0);
+          labelsVisible = false;
+        }
+        requestAnimationFrame(monitorZoom);
       });
 
       drawStars();
@@ -57,11 +75,10 @@
     <canvas id="stars"></canvas>
     <div id="earth_div"></div>
     <div id="atmosphere"></div>
-    <div id="hint">zoom and click anywhere on the map</div>
   </div>
 
   <div id="footer">
-    <div id="chat-log"></div>
+    <div id="chat-log"><div class="hint">zoom and click anywhere on the map</div></div>
   </div>
 
   <script>
