@@ -1,0 +1,140 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap');
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+  display: flex;
+  flex-direction: column;
+}
+
+#header {
+  flex-shrink: 0;
+  background: #000;
+  text-align: center;
+  padding: 36px 40px 28px;
+  position: relative;
+}
+
+#back {
+  position: absolute;
+  left: 40px;
+  top: 40px;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  letter-spacing: 0.15em;
+  color: rgba(255,255,255,0.35);
+  text-decoration: none;
+}
+#back:hover { color: rgba(255,255,255,0.7); }
+
+h1 {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 54px;
+  font-weight: 300;
+  letter-spacing: 0.45em;
+  color: #fff;
+  text-transform: uppercase;
+  margin: 0 0 14px;
+}
+
+p {
+  max-width: 480px;
+  margin: 0 auto;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  font-style: italic;
+  line-height: 1.85;
+  letter-spacing: 0.03em;
+  color: rgba(255,255,255,0.45);
+  font-weight: 300;
+}
+
+#scene-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+#three {
+  position: absolute;
+  inset: 0;
+  width: 100% !important;
+  height: 100% !important;
+  display: block;
+}
+
+#cam {
+  position: absolute;
+  bottom: 14px;
+  right: 14px;
+  width: 88px;
+  height: 66px;
+  border-radius: 3px;
+  opacity: 0.18;
+  z-index: 10;
+  object-fit: cover;
+  transform: scaleX(-1);
+  pointer-events: none;
+}
+
+#emotion-tag {
+  position: absolute;
+  bottom: 22px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 11px;
+  letter-spacing: 0.6em;
+  text-transform: lowercase;
+  color: rgba(255,255,255,0.2);
+  pointer-events: none;
+  opacity: 0;
+  z-index: 5;
+}
+
+#emotion-tag.fade-in {
+  animation: tagFade 3.5s ease forwards;
+}
+
+@keyframes tagFade {
+  0%   { opacity: 0; }
+  15%  { opacity: 1; }
+  75%  { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+#footer {
+  flex-shrink: 0;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 72px;
+}
+
+.hint {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  letter-spacing: 0.35em;
+  color: rgba(255,255,255,0.35);
+  font-style: italic;
+  text-align: center;
+}
+
+.error {
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 13px;
+  letter-spacing: 0.2em;
+  color: rgba(255,100,80,0.45);
+  font-style: italic;
+  text-align: center;
+}

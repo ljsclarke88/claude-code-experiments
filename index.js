@@ -17,7 +17,7 @@ const port = 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '2mb' }));
 app.use(cors());
 app.use('/', express.static(path.join(__dirname, 'public')));
 
@@ -33,6 +33,34 @@ app.post("/api/haiku", async (req, res) => {
         content: text
       }
     });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/api/emotion", async (req, res) => {
+  try {
+    const { frame } = req.body;
+    if (!frame) return res.status(400).json({ error: "no frame" });
+
+    const visionModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    const result = await visionModel.generateContent([
+      {
+        inlineData: { mimeType: "image/jpeg", data: frame }
+      },
+      `Look at the face in this image. Return ONLY a valid JSON object with exactly these two fields:
+{"emotion":"neutral","intensity":0.5}
+The emotion must be one of: happy, sad, angry, fearful, surprised, disgusted, neutral, calm, excited, anxious
+Intensity is a float 0.0–1.0 reflecting how strongly the emotion reads.
+If no face is visible or the image is unclear, return {"emotion":"neutral","intensity":0.5}
+Return only the JSON object. No explanation, no markdown.`
+    ]);
+
+    const text  = result.response.text().trim();
+    const match = text.match(/\{[\s\S]*?\}/);
+    if (!match) throw new Error("no JSON in response");
+    res.json(JSON.parse(match[0]));
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: err.message });

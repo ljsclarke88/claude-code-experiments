@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mantle</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <div id="header">
+    <a href="/" id="back">← Lab</a>
+    <h1>Mantle</h1>
+    <p>The cuttlefish has no voice. It has only colour and pattern — the oldest language there is. Give it your face and watch it answer.</p>
+  </div>
+
+  <div id="scene-wrap">
+    <canvas id="three"></canvas>
+    <video id="cam" autoplay muted playsinline></video>
+    <div id="emotion-tag"></div>
+  </div>
+
+  <div id="footer">
+    <div id="status"><span class="hint">allow camera access to begin</span></div>
+  </div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.165.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.165.0/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    // ── emotion palettes ──
+    const EMOTIONS = {
+      happy:     { colorA: [1.0, 0.72, 0.08], colorB: [1.0, 0.42, 0.04], colorC: [0.98, 0.95, 0.25], speed: 1.8,  scale: 3.2, pulse: 0.85 },
+      sad:       { colorA: [0.08, 0.18, 0.58], colorB: [0.18, 0.32, 0.68], colorC: [0.04, 0.08, 0.38], speed: 0.38, scale: 5.5, pulse: 0.18 },
+      angry:     { colorA: [0.92, 0.08, 0.04], colorB: [0.72, 0.28, 0.0],  colorC: [1.0,  0.0,  0.08], speed: 2.9,  scale: 2.2, pulse: 1.0  },
+      fearful:   { colorA: [0.28, 0.08, 0.38], colorB: [0.12, 0.04, 0.28], colorC: [0.48, 0.18, 0.52], speed: 2.4,  scale: 6.5, pulse: 0.9  },
+      surprised: { colorA: [0.15, 0.88, 0.98], colorB: [0.78, 0.94, 1.0],  colorC: [0.08, 0.58, 0.92], speed: 2.6,  scale: 1.8, pulse: 0.95 },
+      disgusted: { colorA: [0.32, 0.42, 0.08], colorB: [0.18, 0.28, 0.04], colorC: [0.48, 0.38, 0.12], speed: 0.55, scale: 4.2, pulse: 0.32 },
+      neutral:   { colorA: [0.22, 0.48, 0.42], colorB: [0.14, 0.36, 0.38], colorC: [0.32, 0.52, 0.48], speed: 0.75, scale: 4.8, pulse: 0.38 },
+      calm:      { colorA: [0.08, 0.48, 0.52], colorB: [0.12, 0.58, 0.48], colorC: [0.04, 0.32, 0.44], speed: 0.32, scale: 6.2, pulse: 0.22 },
+      excited:   { colorA: [0.92, 0.08, 0.58], colorB: [0.68, 0.04, 0.88], colorC: [1.0,  0.48, 0.08], speed: 3.2,  scale: 1.8, pulse: 1.0  },
+      anxious:   { colorA: [0.42, 0.38, 0.18], colorB: [0.28, 0.28, 0.12], colorC: [0.58, 0.48, 0.22], speed: 2.1,  scale: 5.8, pulse: 0.78 },
+    };
+
+    // ── renderer ──
+    const canvas = document.getElementById('three');
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.15;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x000000);
+    scene.fog = new THREE.FogExp2(0x000305, 0.065);
+
+    const camera = new THREE.PerspectiveCamera(44, 1, 0.1, 100);
+    camera.position.set(0, 0.5, 8);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.minDistance = 3.5;
+    controls.maxDistance = 16;
+    controls.target.set(0, 0.2, 0);
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.25;
+
+    // ── skin shader ──
+    const vertexShader = `
+      varying vec3 vNormal;
+      varying vec3 vPosition;
+      varying vec2 vUv;
+      varying vec3 vWorldPos;
+      void main() {
+        vNormal    = normalize(normalMatrix * normal);
+        vPosition  = position;
+        vUv        = uv;
+        vec4 wp    = modelMatrix * vec4(position, 1.0);
+        vWorldPos  = wp.xyz;
+        gl_Position = projectionMatrix * viewMatrix * wp;
+      }
+    `;
+
+    const fragmentShader = `
+      precision highp float;
+      uniform float uTime;
+      uniform vec3  uColorA;
+      uniform vec3  uColorB;
+      uniform vec3  uColorC;
+      uniform float uSpeed;
+      uniform float uScale;
+      uniform float uPulse;
+      uniform vec3  uCamPos;
+      varying vec3  vNormal;
+      varying vec3  vPosition;
+      varying vec2  vUv;
+      varying vec3  vWorldPos;
+
+      vec2 hash2(vec2 p) {
+        p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3)));
+        return fract(sin(p) * 43758.5453);
+      }
+
+      // Voronoi — returns distance to nearest cell centre
+      float voronoi(vec2 x) {
+        vec2 n = floor(x), f = fract(x);
+        float d = 8.0;
+        for (int j = -1; j <= 1; j++) {
+          for (int i = -1; i <= 1; i++) {
+            vec2 g = vec2(float(i), float(j));
+            vec2 o = hash2(n + g);
+            o = 0.5 + 0.5 * sin(uTime * uSpeed * 0.35 + 6.283 * o);
+            d = min(d, length(g + o - f));
+          }
+        }
+        return d;
+      }
+
+      float chromatophores(vec2 uv, float s) {
+        return smoothstep(0.52, 0.08, voronoi(uv * s));
+      }
+
+      float waveBands(vec3 pos, float t) {
+        float b = sin(pos.y * 5.5 + t * uSpeed * 1.4) * 0.5 + 0.5;
+        b += sin(pos.x * 3.8 + t * uSpeed * 0.75 + 1.2) * 0.22;
+        return clamp(b * 0.55, 0.0, 1.0);
+      }
+
+      void main() {
+        vec3  norm    = normalize(vNormal);
+        vec3  viewDir = normalize(uCamPos - vWorldPos);
+        float fr      = pow(1.0 - max(dot(norm, viewDir), 0.0), 3.2);
+
+        // animated chromatophore layers
+        vec2 uv1 = vec2(vUv.x * 1.8, vUv.y + uTime * uSpeed * 0.04);
+        vec2 uv2 = uv1 * 0.48 + vec2(0.31, 0.67);
+        float c1 = chromatophores(uv1, uScale);
+        float c2 = chromatophores(uv2, uScale * 2.1);
+
+        float waves   = waveBands(vPosition, uTime);
+        float heartbeat = uPulse * (sin(uTime * uSpeed * 2.6) * 0.5 + 0.5);
+        float pattern = clamp(c1 * 0.6 + c2 * 0.28 + waves * 0.32 + heartbeat * 0.22, 0.0, 1.0);
+
+        vec3 col = mix(uColorA, uColorB, pattern);
+        col = mix(col, uColorC, c1 * heartbeat * 0.48);
+
+        // iridescent edge
+        vec3 irid = mix(vec3(0.15, 0.85, 0.92), vec3(0.82, 0.18, 0.88),
+                        sin(fr * 3.1416 + uTime * 0.45) * 0.5 + 0.5);
+        col = mix(col, irid, fr * 0.38);
+
+        // rim glow
+        col += pow(1.0 - max(dot(norm, viewDir), 0.0), 2.8) * uColorC * 0.28;
+
+        // soft depth darkening at poles
+        float ao = smoothstep(-1.0, 1.5, vPosition.y) * 0.28 + 0.72;
+        col *= ao;
+
+        gl_FragColor = vec4(col, 1.0);
+      }
+    `;
+
+    let cur = { ...EMOTIONS.neutral, colorA: [...EMOTIONS.neutral.colorA], colorB: [...EMOTIONS.neutral.colorB], colorC: [...EMOTIONS.neutral.colorC] };
+    let tgt = { ...EMOTIONS.neutral, colorA: [...EMOTIONS.neutral.colorA], colorB: [...EMOTIONS.neutral.colorB], colorC: [...EMOTIONS.neutral.colorC] };
+
+    const uniforms = {
+      uTime:   { value: 0 },
+      uColorA: { value: new THREE.Vector3(...EMOTIONS.neutral.colorA) },
+      uColorB: { value: new THREE.Vector3(...EMOTIONS.neutral.colorB) },
+      uColorC: { value: new THREE.Vector3(...EMOTIONS.neutral.colorC) },
+      uSpeed:  { value: EMOTIONS.neutral.speed },
+      uScale:  { value: EMOTIONS.neutral.scale },
+      uPulse:  { value: EMOTIONS.neutral.pulse },
+      uCamPos: { value: new THREE.Vector3() },
+    };
+
+    const skinMat = new THREE.ShaderMaterial({ vertexShader, fragmentShader, uniforms, side: THREE.DoubleSide });
+
+    // ── mantle body ──
+    const profilePoints = [];
+    for (let i = 0; i <= 36; i++) {
+      const t = i / 36;
+      let r;
+      if (t < 0.12) {
+        r = 0.24 * Math.sin((t / 0.12) * Math.PI * 0.5);
+      } else if (t < 0.42) {
+        const s = (t - 0.12) / 0.30;
+        r = 0.24 + 0.74 * s;
+      } else if (t < 0.64) {
+        r = 0.98;
+      } else {
+        const s = (t - 0.64) / 0.36;
+        r = 0.98 * (1.0 - s * s * 0.98);
+      }
+      profilePoints.push(new THREE.Vector2(r, 2.3 - t * 4.6));
+    }
+    const mantleGeo = new THREE.LatheGeometry(profilePoints, 64);
+    const mantle = new THREE.Mesh(mantleGeo, skinMat);
+    scene.add(mantle);
+
+    // ── fins (ribbon geometry along sides) ──
+    const FIN_SEGS = 44;
+    function buildFin(side) {
+      const vCount = (FIN_SEGS + 1) * 2;
+      const positions = new Float32Array(vCount * 3);
+      const uvs       = new Float32Array(vCount * 2);
+      const indices   = [];
+
+      for (let i = 0; i <= FIN_SEGS; i++) {
+        const t     = i / FIN_SEGS;
+        const angle = t * Math.PI;
+        const bodyR = getBodyRadius(t);
+        const finR  = bodyR + 0.48 + 0.22 * Math.sin(angle * 1.4);
+        const y     = 2.18 - t * 4.0;
+        const i0 = i * 2, i1 = i * 2 + 1;
+
+        positions.set([side * bodyR, y, 0], i0 * 3);
+        positions.set([side * finR,  y, 0], i1 * 3);
+        uvs.set([0, t], i0 * 2);
+        uvs.set([1, t], i1 * 2);
+
+        if (i < FIN_SEGS) {
+          indices.push(i0, i1, i0 + 2, i1, i1 + 2, i0 + 2);
+        }
+      }
+
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      geo.setAttribute('uv',       new THREE.BufferAttribute(uvs, 2));
+      geo.setIndex(indices);
+      geo.computeVertexNormals();
+      const mesh = new THREE.Mesh(geo, skinMat);
+      mesh.userData = { side, positions };
+      scene.add(mesh);
+      return mesh;
+    }
+
+    function getBodyRadius(t) {
+      if (t < 0.12) return 0.24 * Math.sin((t / 0.12) * Math.PI * 0.5);
+      if (t < 0.42) return 0.24 + 0.74 * ((t - 0.12) / 0.30);
+      if (t < 0.64) return 0.98;
+      return 0.98 * (1.0 - Math.pow((t - 0.64) / 0.36, 2) * 0.98);
+    }
+
+    const finL = buildFin(-1);
+    const finR = buildFin(1);
+
+    function updateFins(time, speed) {
+      [finL, finR].forEach(fin => {
+        const side = fin.userData.side;
+        const pos  = fin.geometry.attributes.position;
+        for (let i = 0; i <= FIN_SEGS; i++) {
+          const t     = i / FIN_SEGS;
+          const angle = t * Math.PI;
+          const bodyR = getBodyRadius(t);
+          const wave  = Math.sin(t * 6.5 - time * (1.4 + speed * 0.35)) * 0.14 * Math.sin(angle);
+          const finR  = bodyR + 0.48 + 0.22 * Math.sin(angle * 1.4) + wave * 0.6;
+          const y     = 2.18 - t * 4.0;
+          const i0 = i * 2, i1 = i * 2 + 1;
+          pos.setXYZ(i0, side * bodyR, y, wave * 0.25);
+          pos.setXYZ(i1, side * finR,  y, wave);
+        }
+        pos.needsUpdate = true;
+      });
+    }
+
+    // ── tentacles (segmented chains) ──
+    const tentacleGroups = [];
+
+    function buildTentacle(spreadAngle, length, isFeeder) {
+      const group    = new THREE.Group();
+      const nSegs    = isFeeder ? 7 : 5;
+      const segLen   = length / nSegs;
+      const radius   = isFeeder ? 0.052 : 0.046;
+      const segGeo   = new THREE.CylinderGeometry(radius * 0.62, radius, segLen, 6, 1);
+      segGeo.translate(0, -segLen * 0.5, 0);
+
+      const joints = [];
+      let parent = group;
+      for (let i = 0; i < nSegs; i++) {
+        const mesh = new THREE.Mesh(segGeo, skinMat);
+        mesh.position.y = i === 0 ? 0 : -segLen;
+        parent.add(mesh);
+        parent = mesh;
+        joints.push(mesh);
+      }
+
+      group.position.set(Math.sin(spreadAngle) * 0.11, -2.28, Math.cos(spreadAngle) * 0.11);
+      group.rotation.x = 0.18;
+      group.rotation.z = spreadAngle * 0.32;
+      scene.add(group);
+      tentacleGroups.push({ group, joints, spreadAngle, isFeeder });
+    }
+
+    for (let i = 0; i < 8; i++) {
+      const a = ((i / 7) - 0.5) * Math.PI * 0.72;
+      buildTentacle(a, 1.4 + (i % 3) * 0.18, false);
+    }
+    buildTentacle(-0.14, 2.6, true);
+    buildTentacle( 0.14, 2.6, true);
+
+    function updateTentacles(time, speed) {
+      tentacleGroups.forEach(({ group, joints, spreadAngle, isFeeder }, idx) => {
+        const sway = Math.sin(time * (0.9 + speed * 0.22) + idx * 0.68) * 0.14;
+        group.rotation.z = spreadAngle * 0.32 + sway;
+        group.rotation.x = 0.18 + Math.sin(time * 0.6 + idx * 0.4) * 0.06;
+        joints.forEach((j, s) => {
+          j.rotation.z = Math.sin(time * 0.8 + s * 0.9  + idx * 0.55) * (0.08 + s * 0.025);
+          j.rotation.x = Math.sin(time * 0.55 + s * 1.1 + idx * 0.3)  * 0.055;
+        });
+      });
+    }
+
+    // ── eyes ──
+    const eyeGeo   = new THREE.SphereGeometry(0.175, 20, 20);
+    const eyeMat   = new THREE.MeshStandardMaterial({ color: 0x060610, roughness: 0.08, metalness: 0.1 });
+    const pupilGeo = new THREE.TorusGeometry(0.085, 0.022, 8, 24);
+    const pupilMat = new THREE.MeshStandardMaterial({ color: 0x000000, roughness: 1.0 });
+
+    [-1, 1].forEach(side => {
+      const eye   = new THREE.Mesh(eyeGeo, eyeMat);
+      const pupil = new THREE.Mesh(pupilGeo, pupilMat);
+      eye.position.set(side * 0.68, 1.42, 0.52);
+      pupil.position.set(side * 0.68, 1.42, 0.66);
+      pupil.rotation.x = Math.PI * 0.5;
+      scene.add(eye, pupil);
+    });
+
+    // ── lighting ──
+    scene.add(new THREE.AmbientLight(0x080818, 2.5));
+
+    const key = new THREE.DirectionalLight(0x3377ff, 3.5);
+    key.position.set(3, 5, 5);
+    scene.add(key);
+
+    const fill = new THREE.DirectionalLight(0x220033, 1.8);
+    fill.position.set(-5, -2, 3);
+    scene.add(fill);
+
+    const rim = new THREE.DirectionalLight(0x00eebb, 2.2);
+    rim.position.set(0, 4, -7);
+    scene.add(rim);
+
+    // animated caustic light
+    const caustic = new THREE.PointLight(0x0044aa, 2.0, 12);
+    caustic.position.set(0, 4, 2);
+    scene.add(caustic);
+
+    // ── particles (plankton) ──
+    const N = 700;
+    const pp = new Float32Array(N * 3);
+    for (let i = 0; i < N; i++) {
+      pp[i*3]   = (Math.random() - 0.5) * 22;
+      pp[i*3+1] = (Math.random() - 0.5) * 14;
+      pp[i*3+2] = (Math.random() - 0.5) * 22;
+    }
+    const pGeo = new THREE.BufferGeometry();
+    pGeo.setAttribute('position', new THREE.BufferAttribute(pp, 3));
+    const pMat = new THREE.PointsMaterial({ color: 0x223355, size: 0.045, transparent: true, opacity: 0.55 });
+    scene.add(new THREE.Points(pGeo, pMat));
+
+    // ── state interpolation ──
+    const LERP = 0.012;
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function lerpArr(a, b, t) { return a.map((v, i) => lerp(v, b[i], t)); }
+
+    function transitionTo(emotionKey) {
+      const e = EMOTIONS[emotionKey] || EMOTIONS.neutral;
+      tgt = { ...e, colorA: [...e.colorA], colorB: [...e.colorB], colorC: [...e.colorC] };
+      const tag = document.getElementById('emotion-tag');
+      tag.textContent = emotionKey;
+      tag.classList.remove('fade-in');
+      void tag.offsetWidth;
+      tag.classList.add('fade-in');
+    }
+
+    // ── resize ──
+    function resize() {
+      const wrap = document.getElementById('scene-wrap');
+      renderer.setSize(wrap.clientWidth, wrap.clientHeight);
+      camera.aspect = wrap.clientWidth / wrap.clientHeight;
+      camera.updateProjectionMatrix();
+    }
+    resize();
+    window.addEventListener('resize', resize);
+
+    // ── render loop ──
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const t = clock.getElapsedTime();
+
+      // interpolate state
+      cur.colorA = lerpArr(cur.colorA, tgt.colorA, LERP * 4);
+      cur.colorB = lerpArr(cur.colorB, tgt.colorB, LERP * 4);
+      cur.colorC = lerpArr(cur.colorC, tgt.colorC, LERP * 4);
+      cur.speed  = lerp(cur.speed,  tgt.speed,  LERP);
+      cur.scale  = lerp(cur.scale,  tgt.scale,  LERP);
+      cur.pulse  = lerp(cur.pulse,  tgt.pulse,  LERP);
+
+      uniforms.uTime.value  = t;
+      uniforms.uColorA.value.set(...cur.colorA);
+      uniforms.uColorB.value.set(...cur.colorB);
+      uniforms.uColorC.value.set(...cur.colorC);
+      uniforms.uSpeed.value = cur.speed;
+      uniforms.uScale.value = cur.scale;
+      uniforms.uPulse.value = cur.pulse;
+      uniforms.uCamPos.value.copy(camera.position);
+
+      // animate body
+      const breathe = 1.0 + Math.sin(t * (0.72 + cur.speed * 0.18)) * 0.022;
+      mantle.scale.set(breathe, 1.0, breathe * 0.88);
+      mantle.position.y = Math.sin(t * 0.38) * 0.12;
+
+      // cascade float to fins and tentacles
+      [finL, finR].forEach(f => { f.position.y = mantle.position.y; });
+      tentacleGroups.forEach(({ group }) => { group.position.y = -2.28 + mantle.position.y; });
+
+      // caustic drift
+      caustic.position.x = Math.sin(t * 0.55) * 2.5;
+      caustic.position.z = Math.cos(t * 0.42) * 2.5 + 2;
+      caustic.intensity  = 1.8 + Math.sin(t * 1.8) * 0.6;
+
+      updateFins(t, cur.speed);
+      updateTentacles(t, cur.speed);
+
+      controls.update();
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // ── camera + emotion detection ──
+    const video = document.getElementById('cam');
+
+    async function startCamera() {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 320, height: 240 }, audio: false });
+        video.srcObject = stream;
+        document.getElementById('status').innerHTML = '<span class="hint">reading your expression</span>';
+        setTimeout(analyseEmotion, 1200);
+        setInterval(analyseEmotion, 5500);
+      } catch {
+        document.getElementById('status').innerHTML = '<span class="error">camera access denied — the cuttlefish waits</span>';
+        transitionTo('calm');
+      }
+    }
+
+    function captureFrame() {
+      const offscreen = document.createElement('canvas');
+      offscreen.width  = 320;
+      offscreen.height = 240;
+      offscreen.getContext('2d').drawImage(video, 0, 0, 320, 240);
+      return offscreen.toDataURL('image/jpeg', 0.72).split(',')[1];
+    }
+
+    async function analyseEmotion() {
+      if (!video.videoWidth) return;
+      try {
+        const res = await fetch('/api/emotion', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ frame: captureFrame() }),
+        });
+        const data = await res.json();
+        if (data.emotion && EMOTIONS[data.emotion]) {
+          transitionTo(data.emotion);
+          document.getElementById('status').innerHTML = '';
+        }
+      } catch { /* keep current state */ }
+    }
+
+    startCamera();
+  </script>
+
+</body>
+</html>
