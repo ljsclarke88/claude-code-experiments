@@ -8,17 +8,17 @@
   <script>
     var earth;
     var marker = null;
-    var satelliteLayer, hybridLayer, labelsVisible = false;
+    var labelsLayer, labelsVisible = false;
 
     function initialize() {
       earth = new WE.map('earth_div', { background: '#000000' });
       earth.setView([20, 0], 1.5);
 
-      satelliteLayer = WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 256, opacity: 1
+      WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
+        attribution: '', tileSize: 256
       }).addTo(earth);
 
-      hybridLayer = WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.png?key=RBZilnlcNkvvNnkaQ8ay', {
+      labelsLayer = WE.tileLayer('https://a.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}.png', {
         attribution: '', tileSize: 256, opacity: 0
       }).addTo(earth);
 
@@ -30,12 +30,10 @@
       requestAnimationFrame(function monitorZoom() {
         var zoom = earth.getZoom();
         if (zoom >= 2.5 && !labelsVisible) {
-          satelliteLayer.setOpacity(0);
-          hybridLayer.setOpacity(1);
+          labelsLayer.setOpacity(1);
           labelsVisible = true;
         } else if (zoom < 2.5 && labelsVisible) {
-          satelliteLayer.setOpacity(1);
-          hybridLayer.setOpacity(0);
+          labelsLayer.setOpacity(0);
           labelsVisible = false;
         }
         requestAnimationFrame(monitorZoom);
