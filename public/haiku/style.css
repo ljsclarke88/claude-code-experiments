@@ -80,6 +80,23 @@ p {
   z-index: 1;
 }
 
+#hint {
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 15px;
+  letter-spacing: 0.35em;
+  color: rgba(255, 255, 255, 0.45);
+  font-style: italic;
+  text-transform: lowercase;
+  transition: opacity 1.2s ease;
+}
+
 #atmosphere {
   position: absolute;
   inset: 0;

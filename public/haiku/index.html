@@ -7,40 +7,20 @@
   <script src="https://www.webglearth.com/v2/api.js"></script>
   <script>
     var earth;
-    var marker;
-    var satelliteLayer, hybridLayer, currentLayer;
+    var marker = null;
 
     function initialize() {
       earth = new WE.map('earth_div', { background: '#000000' });
       earth.setView([20, 0], 1.5);
 
-      satelliteLayer = WE.tileLayer('https://api.maptiler.com/tiles/satellite-v2/{z}/{x}/{y}.jpg?key=RBZilnlcNkvvNnkaQ8ay', {
+      WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.png?key=RBZilnlcNkvvNnkaQ8ay', {
         attribution: '', tileSize: 256
       }).addTo(earth);
-      hybridLayer = WE.tileLayer('https://api.maptiler.com/maps/hybrid/{z}/{x}/{y}.png?key=RBZilnlcNkvvNnkaQ8ay', {
-        attribution: '', tileSize: 256
-      });
-      currentLayer = 'satellite';
 
       earth.on("click", function(event) {
+        document.getElementById('hint').style.opacity = '0';
         placeMarker(event.latlng);
         convertCoordinatesToWords(event.latlng.lat, event.latlng.lng);
-      });
-
-      marker = WE.marker([20, 0]).addTo(earth);
-
-      requestAnimationFrame(function monitorZoom() {
-        var zoom = earth.getZoom();
-        if (zoom >= 2 && currentLayer === 'satellite') {
-          satelliteLayer.remove();
-          hybridLayer.addTo(earth);
-          currentLayer = 'hybrid';
-        } else if (zoom < 2 && currentLayer === 'hybrid') {
-          hybridLayer.remove();
-          satelliteLayer.addTo(earth);
-          currentLayer = 'satellite';
-        }
-        requestAnimationFrame(monitorZoom);
       });
 
       drawStars();
@@ -77,6 +57,7 @@
     <canvas id="stars"></canvas>
     <div id="earth_div"></div>
     <div id="atmosphere"></div>
+    <div id="hint">zoom and click anywhere on the map</div>
   </div>
 
   <div id="footer">
