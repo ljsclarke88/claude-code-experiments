@@ -119,9 +119,9 @@ p {
 /* ── states ── */
 .loading {
   font-family: 'Cormorant Garamond', serif;
-  font-size: 14px;
+  font-size: 28px;
   letter-spacing: 0.4em;
-  color: rgba(255, 255, 255, 0.28);
+  color: #fff;
   font-style: italic;
   text-transform: lowercase;
   animation: breathe 2.4s ease-in-out infinite;

@@ -31,11 +31,11 @@
 
       requestAnimationFrame(function monitorZoom() {
         var zoom = earth.getZoom();
-        if (zoom >= 4 && currentLayer === 'satellite') {
+        if (zoom >= 2 && currentLayer === 'satellite') {
           satelliteLayer.remove();
           hybridLayer.addTo(earth);
           currentLayer = 'hybrid';
-        } else if (zoom < 4 && currentLayer === 'hybrid') {
+        } else if (zoom < 2 && currentLayer === 'hybrid') {
           hybridLayer.remove();
           satelliteLayer.addTo(earth);
           currentLayer = 'satellite';
