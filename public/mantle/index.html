@@ -431,9 +431,12 @@
     }
 
     // ── swim-in animation ─────────────────────────────────────────────────────
-    // Cuttlefish enters from off-screen left, swims to centre, then camera starts.
+    // Phase 1: swim in from off-screen left to centre (body axis along swim direction).
+    // Phase 2: turn 90° to face the camera.
+    // Phase 3: settled face-tracking.
     const SWIM_DUR=4.5;
-    let swimDone=false;
+    const TURN_DUR=2.2;
+    let swimDone=false,turnDone=false;
 
     // ── resize ────────────────────────────────────────────────────────────────
     function resize(){
@@ -478,31 +481,35 @@
       trackX+=(trackTargetX-trackX)*0.060;
       trackY+=(trackTargetY-trackY)*0.060;
 
-      // swim-in vs settled behaviour
+      // swim-in → turn → settled
       const swimP=Math.min(1,t/SWIM_DUR);
       const swimE=1-Math.pow(1-swimP,3); // ease-out cubic
 
       if(!swimDone){
-        // Swim from off-screen left (−X) to centre
-        cuttle.position.set(
-          lerp(-12,0,swimE),
-          lerp(-0.5,driftY,swimE),
-          lerp(1.5,0,swimE)
-        );
-        cuttle.rotation.y=lerp(0.05,0.28+trackX*0.75,swimE)+idleYaw*swimE;
-        cuttle.rotation.x=lerp(-0.04,trackY*(-0.35),swimE)+idlePit*swimE;
+        // Phase 1: swim in from off-screen left — head pointing in travel direction
+        cuttle.position.set(lerp(-12,0,swimE),lerp(-0.5,driftY,swimE),lerp(1.5,0,swimE));
+        cuttle.rotation.y=idleYaw*swimE*0.4;
+        cuttle.rotation.x=lerp(-0.04,0,swimE)+idlePit*swimE;
         cuttle.rotation.z=idleRoll*swimE;
         if(swimP>=1){ swimDone=true; startCamera(); }
-      } else {
+      } else if(!turnDone){
+        // Phase 2: slow 90° turn to face the camera
+        const turnP=Math.min(1,(t-SWIM_DUR)/TURN_DUR);
+        const turnE=1-Math.pow(1-turnP,2.5); // ease-out
         cuttle.position.set(driftX,driftY,0);
-        cuttle.rotation.y=0.28+trackX*0.75+idleYaw;
-        cuttle.rotation.x=trackY*(-0.35)+idlePit;
+        cuttle.rotation.y=lerp(0,Math.PI/2,turnE)+idleYaw;
+        cuttle.rotation.x=lerp(0,trackY*(-0.30),turnE)+idlePit;
+        cuttle.rotation.z=idleRoll;
+        if(turnP>=1){ turnDone=true; }
+      } else {
+        // Phase 3: face-forward, follow user
+        cuttle.position.set(driftX,driftY,0);
+        cuttle.rotation.y=Math.PI/2+trackX*0.40+idleYaw;
+        cuttle.rotation.x=trackY*(-0.30)+idlePit;
         cuttle.rotation.z=idleRoll;
       }
 
-      // arm drag during swim (trails back), releases on arrival
       const drag=swimDone ? 0 : (1-swimE)*0.30;
-      // faster fins during swim
       const finSpeed=swimDone ? cur.speed : Math.max(2.8,cur.speed);
 
       // body breathe
