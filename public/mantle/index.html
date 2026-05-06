@@ -497,14 +497,14 @@
         const turnP=Math.min(1,(t-SWIM_DUR)/TURN_DUR);
         const turnE=1-Math.pow(1-turnP,2.5); // ease-out
         cuttle.position.set(driftX,driftY,0);
-        cuttle.rotation.y=lerp(0,Math.PI/2,turnE)+idleYaw;
+        cuttle.rotation.y=lerp(0,-Math.PI/2,turnE)+idleYaw;
         cuttle.rotation.x=lerp(0,trackY*(-0.30),turnE)+idlePit;
         cuttle.rotation.z=idleRoll;
         if(turnP>=1){ turnDone=true; }
       } else {
         // Phase 3: face-forward, follow user
         cuttle.position.set(driftX,driftY,0);
-        cuttle.rotation.y=Math.PI/2+trackX*0.40+idleYaw;
+        cuttle.rotation.y=-Math.PI/2+trackX*0.40+idleYaw;
         cuttle.rotation.x=trackY*(-0.30)+idlePit;
         cuttle.rotation.z=idleRoll;
       }
