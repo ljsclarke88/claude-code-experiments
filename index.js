@@ -5,6 +5,7 @@ import bodyParser from "body-parser";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from 'url';
+import rateLimit from 'express-rate-limit';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 const model = genAI.getGenerativeModel({
@@ -17,13 +18,25 @@ const port = 3000;
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Rate limiting — keep within Gemini free tier (15 req/min, 1500 req/day)
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,   // 1 minute
+  max: 12,               // 12 requests per IP per minute (some headroom under the 15/min limit)
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "too many requests — please wait a moment" },
+});
+
 app.use(bodyParser.json({ limit: '2mb' }));
 app.use(cors());
 app.use('/', express.static(path.join(__dirname, 'public')));
 
-app.post("/api/haiku", async (req, res) => {
+app.post("/api/haiku", apiLimiter, async (req, res) => {
   try {
     const { message } = req.body;
+    if (!message || typeof message !== 'string' || message.length > 200) {
+      return res.status(400).json({ error: "invalid request" });
+    }
 
     const result = await model.generateContent(message);
     const text = result.response.text();
@@ -35,14 +48,14 @@ app.post("/api/haiku", async (req, res) => {
     });
   } catch (err) {
     console.error(err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "could not generate haiku" });
   }
 });
 
-app.post("/api/emotion", async (req, res) => {
+app.post("/api/emotion", apiLimiter, async (req, res) => {
   try {
     const { frame } = req.body;
-    if (!frame) return res.status(400).json({ error: "no frame" });
+    if (!frame || typeof frame !== 'string') return res.status(400).json({ error: "no frame" });
 
     const visionModel = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     const result = await visionModel.generateContent([
@@ -63,7 +76,7 @@ Return only the JSON object. No explanation, no markdown.`
     res.json(JSON.parse(match[0]));
   } catch (err) {
     console.error(err.message);
-    res.status(500).json({ error: err.message });
+    res.status(500).json({ error: "could not analyse emotion" });
   }
 });
 

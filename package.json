@@ -11,16 +11,13 @@
   "type": "module",
   "proxy": "http://localhost:3000",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.91.1",
     "@google/generative-ai": "^0.24.1",
-    "@tweenjs/tween.js": "^21.0.0",
     "body-parser": "^1.20.2",
     "cors": "^2.8.5",
     "dotenv": "^17.4.2",
     "express": "^4.18.2",
-    "openai": "^3.3.0",
+    "express-rate-limit": "^7.5.1",
     "path": "^0.12.7",
-    "three": "^0.154.0",
     "url": "^0.11.1"
   }
 }

@@ -94,7 +94,12 @@
     }
 
     function showError(msg) {
-      document.getElementById("chat-log").innerHTML = '<div class="error">' + msg + '</div>';
+      const el = document.createElement('div');
+      el.className = 'error';
+      el.textContent = msg;
+      const log = document.getElementById("chat-log");
+      log.innerHTML = '';
+      log.appendChild(el);
     }
 
     async function convertCoordinatesToWords(latitude, longitude) {
@@ -135,13 +140,20 @@
           .map(l => l.trim())
           .filter(l => l.length > 0);
         if (lines.length < 3) throw new Error("unexpected haiku format");
-        chatLog.innerHTML =
-          '<div class="words-label">' + words.join(" · ") + '</div>' +
-          '<div class="message">' +
-            '<div class="message__text">' + lines[0] + '</div>' +
-            '<div class="message__text">' + lines[1] + '</div>' +
-            '<div class="message__text">' + lines[2] + '</div>' +
-          '</div>';
+        chatLog.innerHTML = '';
+        const label = document.createElement('div');
+        label.className = 'words-label';
+        label.textContent = words.join(" · ");
+        const msg = document.createElement('div');
+        msg.className = 'message';
+        lines.slice(0, 3).forEach(line => {
+          const d = document.createElement('div');
+          d.className = 'message__text';
+          d.textContent = line;
+          msg.appendChild(d);
+        });
+        chatLog.appendChild(label);
+        chatLog.appendChild(msg);
       } catch (err) {
         console.error(err);
         showError("the haiku could not be written — " + err.message);
