@@ -24,6 +24,8 @@
     <div id="status"><span class="hint">&nbsp;</span></div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/dist/face-api.min.js"></script>
+
   <script type="importmap">
   {
     "imports": {
@@ -413,27 +415,6 @@
 
     // ── face tracking ─────────────────────────────────────────────────────────
     let trackTargetX=0,trackTargetY=0,trackX=0,trackY=0;
-    const trackCvs=document.createElement('canvas');
-    trackCvs.width=24;trackCvs.height=18;
-    const trackCtx=trackCvs.getContext('2d',{willReadFrequently:true});
-
-    function sampleFace(){
-      const vid=document.getElementById('cam');
-      if(!vid.videoWidth)return;
-      trackCtx.drawImage(vid,0,0,24,18);
-      const d=trackCtx.getImageData(0,0,24,18).data;
-      let sx=0,sy=0,sw=0;
-      for(let y=0;y<18;y++)for(let x=0;x<24;x++){
-        const i=(y*24+x)*4,r=d[i],g=d[i+1],b=d[i+2],lum=(r+g+b)/3;
-        if(lum<28||lum>238)continue;
-        const w=Math.max(0,(r-b)*0.6+lum*0.25-35);
-        sx+=x*w;sy+=y*w;sw+=w;
-      }
-      if(sw>400){
-        trackTargetX=(1-(sx/sw)/23)*2-1;
-        trackTargetY=((sy/sw)/17)*2-1;
-      }
-    }
 
     // ── swim-in animation ─────────────────────────────────────────────────────
     // Phase 1: swim in from off-screen left to centre (body axis along swim direction).
@@ -475,50 +456,61 @@
       uniforms.uPulse.value=cur.pulse;
       uniforms.uCamPos.value.copy(camera.position);
 
-      // idle motion
-      const idleYaw =Math.sin(t*0.22)*0.055+Math.sin(t*0.35)*0.022;
-      const idlePit =Math.sin(t*0.18+1.1)*0.030;
-      const idleRoll=Math.sin(t*0.14)*0.018;
-      const driftX  =Math.sin(t*0.19)*0.14+Math.sin(t*0.31)*0.05;
-      const driftY  =Math.sin(t*0.26)*0.09+Math.sin(t*0.47)*0.04;
+      // idle motion — layered sinusoids for organic feel
+      const idleYaw =Math.sin(t*0.20)*0.048+Math.sin(t*0.33)*0.022+Math.sin(t*0.51)*0.010;
+      const idlePit =Math.sin(t*0.17+1.1)*0.028+Math.sin(t*0.29+0.7)*0.012;
+      const idleRoll=Math.sin(t*0.13)*0.018+Math.sin(t*0.22)*0.009;
+      const driftX  =Math.sin(t*0.19)*0.16+Math.sin(t*0.31)*0.06+Math.sin(t*0.47)*0.025;
+      const driftY  =Math.sin(t*0.23)*0.10+Math.sin(t*0.41)*0.045+Math.sin(t*0.61)*0.018;
 
-      // face tracking
-      trackX+=(trackTargetX-trackX)*0.060;
-      trackY+=(trackTargetY-trackY)*0.060;
+      // micro-tremors — high-freq noise simulating water current
+      const microX=Math.sin(t*6.7)*0.009+Math.sin(t*11.3)*0.004;
+      const microY=Math.sin(t*7.9+0.7)*0.007+Math.sin(t*13.1)*0.003;
+      const microZ=Math.sin(t*5.8+1.4)*0.005;
+      const microRoll=Math.sin(t*9.1+2.0)*0.012+Math.sin(t*14.3+0.5)*0.005;
+
+      // face tracking — smoothed
+      trackX+=(trackTargetX-trackX)*0.045;
+      trackY+=(trackTargetY-trackY)*0.045;
 
       // swim-in → turn → settled
       const swimP=Math.min(1,t/SWIM_DUR);
       const swimE=1-Math.pow(1-swimP,3); // ease-out cubic
 
       if(!swimDone){
-        // Phase 1: swim in from off-screen left — head pointing in travel direction
-        cuttle.position.set(lerp(-12,0,swimE),lerp(-0.5,driftY,swimE),lerp(1.5,0,swimE));
-        cuttle.rotation.y=idleYaw*swimE*0.4;
-        cuttle.rotation.x=lerp(-0.04,0,swimE)+idlePit*swimE;
-        cuttle.rotation.z=idleRoll*swimE;
+        // Phase 1: curved swim-in — gentle arc with Z weave and body wiggle
+        const pathY=Math.sin(swimE*Math.PI)*0.45*(1-swimE*0.4)+driftY*swimE;
+        const pathZ=Math.sin(swimE*Math.PI*1.8)*0.40;
+        const wiggleY=Math.sin(t*3.0)*0.038*(1-swimE);
+        const wiggleZ=Math.sin(t*2.4+0.8)*0.022*(1-swimE);
+        cuttle.position.set(lerp(-9,0,swimE)+microX,pathY+microY,pathZ+microZ);
+        cuttle.rotation.y=wiggleY;
+        cuttle.rotation.x=lerp(-0.07,0,swimE)+wiggleZ+idlePit*swimE*0.5;
+        cuttle.rotation.z=Math.sin(t*1.9)*0.018*(1-swimE)+idleRoll*swimE;
         if(swimP>=1){ swimDone=true; startCamera(); }
       } else if(!turnDone){
-        // Phase 2: slow 90° turn to face the camera
+        // Phase 2: ease-in-out turn to face camera
         const turnP=Math.min(1,(t-SWIM_DUR)/TURN_DUR);
-        const turnE=1-Math.pow(1-turnP,2.5); // ease-out
-        cuttle.position.set(driftX,driftY,0);
-        cuttle.rotation.y=lerp(0,-Math.PI/2,turnE)+idleYaw;
-        cuttle.rotation.x=lerp(0,trackY*(-0.30),turnE)+idlePit;
-        cuttle.rotation.z=idleRoll;
+        const turnE=turnP<0.5?2*turnP*turnP:1-Math.pow(-2*turnP+2,2)/2;
+        cuttle.position.set(driftX+microX,driftY+microY,microZ);
+        cuttle.rotation.y=lerp(0,-Math.PI/2,turnE)+idleYaw*0.5;
+        cuttle.rotation.x=lerp(0,trackY*(-0.28),turnE)+idlePit;
+        cuttle.rotation.z=idleRoll+microRoll;
         if(turnP>=1){ turnDone=true; }
       } else {
-        // Phase 3: face-forward, follow user
-        cuttle.position.set(driftX,driftY,0);
-        cuttle.rotation.y=-Math.PI/2+trackX*0.40+idleYaw;
-        cuttle.rotation.x=trackY*(-0.30)+idlePit;
-        cuttle.rotation.z=idleRoll;
+        // Phase 3: face-forward, alive and following
+        cuttle.position.set(driftX+microX,driftY+microY,microZ);
+        cuttle.rotation.y=-Math.PI/2+trackX*0.38+idleYaw;
+        cuttle.rotation.x=trackY*(-0.28)+idlePit;
+        cuttle.rotation.z=idleRoll+microRoll;
       }
 
       const drag=swimDone ? 0 : (1-swimE)*0.30;
       const finSpeed=swimDone ? cur.speed : Math.max(2.8,cur.speed);
 
-      // body breathe
-      const breathe=1.0+Math.sin(t*(0.65+cur.speed*0.15))*0.018;
+      // body breathe — layered for organic rise and fall
+      const bf=0.55+cur.speed*0.10;
+      const breathe=1.0+Math.sin(t*bf)*0.024+Math.sin(t*bf*2.3)*0.007+Math.sin(t*0.28)*0.010;
       cuttle.children[0].scale.set(1,breathe,breathe); // mantle only
 
       // caustic
@@ -540,41 +532,54 @@
     }
     animate();
 
-    // ── camera + emotion ──────────────────────────────────────────────────────
+    // ── camera + emotion (client-side via face-api.js) ────────────────────────
     const video=document.getElementById('cam');
-    let faceInterval=null,emotionInterval=null;
+    const MODEL_URL='https://cdn.jsdelivr.net/npm/face-api.js@0.22.2/weights/';
+    let tinyOpts=null,detecting=false;
+
+    function mapToEmotion(e){
+      if(e.happy>0.65&&e.surprised>0.15)return'excited';
+      if(e.neutral>0.80)return'calm';
+      if(e.fearful>0.20&&e.disgusted>0.12)return'anxious';
+      return Object.entries(e).reduce((a,b)=>a[1]>b[1]?a:b)[0];
+    }
+
+    async function runDetection(){
+      if(!video.videoWidth||detecting)return;
+      detecting=true;
+      try{
+        const r=await faceapi.detectSingleFace(video,tinyOpts).withFaceExpressions();
+        if(r){
+          const b=r.detection.box;
+          trackTargetX=(1-(b.x+b.width/2)/video.videoWidth)*2-1;
+          trackTargetY=((b.y+b.height/2)/video.videoHeight*2-1)*0.7;
+          transitionTo(mapToEmotion(r.expressions));
+        }else{
+          trackTargetX*=0.96;
+          trackTargetY*=0.96;
+        }
+      }catch{/*keep current*/}
+      detecting=false;
+    }
 
     function startCamera(){
       navigator.mediaDevices.getUserMedia({video:{facingMode:'user',width:320,height:240},audio:false})
-        .then(stream=>{
+        .then(async stream=>{
           video.srcObject=stream;
+          document.getElementById('status').innerHTML='<span class="hint">loading face reader…</span>';
+          await Promise.all([
+            faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
+            faceapi.nets.faceExpressionNet.loadFromUri(MODEL_URL),
+          ]);
+          tinyOpts=new faceapi.TinyFaceDetectorOptions({inputSize:224,scoreThreshold:0.40});
           document.getElementById('status').innerHTML='<span class="hint">reading your expression</span>';
-          faceInterval   =setInterval(sampleFace,   160);
-          emotionInterval=setInterval(analyseEmotion,4000);
-          setTimeout(analyseEmotion,800);
+          setInterval(runDetection,250);
+          runDetection();
         })
         .catch(()=>{
           document.getElementById('status').innerHTML='<span class="error">camera access denied — the cuttlefish waits</span>';
           transitionTo('calm');
         });
-    }
-
-    function captureFrame(){
-      const off=document.createElement('canvas');off.width=320;off.height=240;
-      off.getContext('2d').drawImage(video,0,0,320,240);
-      return off.toDataURL('image/jpeg',0.72).split(',')[1];
-    }
-
-    async function analyseEmotion(){
-      if(!video.videoWidth)return;
-      try{
-        const res=await fetch('/api/emotion',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({frame:captureFrame()})});
-        const data=await res.json();
-        if(data.emotion&&EMOTIONS[data.emotion]){
-          transitionTo(data.emotion);
-          document.getElementById('status').innerHTML='';
-        }
-      }catch{/*keep current*/}
     }
   </script>
 
