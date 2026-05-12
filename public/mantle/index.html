@@ -249,15 +249,16 @@
     }
     const finL=buildFin(-1),finR=buildFin(1);
 
-    function updateFins(t,speed){
+    function updateFins(t,speed,velmag){
       [finL,finR].forEach(fin=>{
         const side=fin.userData.side,pos=fin.geometry.attributes.position;
+        const amp=0.20+velmag*0.40; // fins work harder when drifting
         for(let i=0;i<=FIN_SEGS;i++){
           const u=i/FIN_SEGS,x=bodyX(u);
           const{rZ}=getProfile(Math.min(1,Math.max(0,u*1.06-0.03)));
           const env=Math.sin(Math.max(0,Math.min(1,u*1.08-0.04))*Math.PI);
           const fw=Math.max(0.007, 0.58*env);
-          const wave=Math.sin(u*9.5+t*(1.38+speed*0.28))*0.22*env;
+          const wave=Math.sin(u*9.5+t*(1.38+speed*0.28))*amp*env;
           pos.setXYZ(i*2,x,0,side*rZ);
           pos.setXYZ(i*2+1,x,wave,side*(rZ+fw));
         }
@@ -416,13 +417,9 @@
     // ── face tracking ─────────────────────────────────────────────────────────
     let trackTargetX=0,trackTargetY=0,trackX=0,trackY=0;
 
-    // ── swim-in animation ─────────────────────────────────────────────────────
-    // Phase 1: swim in from off-screen left to centre (body axis along swim direction).
-    // Phase 2: turn 90° to face the camera.
-    // Phase 3: settled face-tracking.
-    const SWIM_DUR=4.5;
-    const TURN_DUR=2.2;
-    let swimDone=false,turnDone=false;
+    // ── spring dynamics — drifts against random current, springs back to face ───
+    let posX=0,posY=0,posZ=0,velX=0,velY=0,velZ=0,nextImpulseT=1.5;
+    cuttle.rotation.y=-Math.PI/2;
 
     // ── resize ────────────────────────────────────────────────────────────────
     function resize(){
@@ -451,62 +448,46 @@
       uniforms.uColorA.value.set(...cur.colorA);
       uniforms.uColorB.value.set(...cur.colorB);
       uniforms.uColorC.value.set(...cur.colorC);
-      uniforms.uSpeed.value=cur.speed;
+      // rhythmic base pulse — always runs so patterns never go static between detections
+      const rhythmPulse=(Math.sin(t*1.4)*0.5+0.5)*0.18+(Math.sin(t*0.7+0.3)*0.5+0.5)*0.08;
+      uniforms.uSpeed.value=Math.max(cur.speed,0.42);
       uniforms.uScale.value=cur.scale;
-      uniforms.uPulse.value=cur.pulse;
+      uniforms.uPulse.value=Math.min(1.0,cur.pulse+rhythmPulse);
       uniforms.uCamPos.value.copy(camera.position);
 
-      // idle motion — minimal rotation, generous positional drift
-      const idleYaw =Math.sin(t*0.20)*0.018+Math.sin(t*0.33)*0.008;
-      const idlePit =Math.sin(t*0.17+1.1)*0.012+Math.sin(t*0.29+0.7)*0.006;
-      const idleRoll=Math.sin(t*0.13)*0.010+Math.sin(t*0.22)*0.005;
-      const driftX  =Math.sin(t*0.19)*0.28+Math.sin(t*0.31)*0.12+Math.sin(t*0.47)*0.05;
-      const driftY  =Math.sin(t*0.23)*0.18+Math.sin(t*0.41)*0.08+Math.sin(t*0.61)*0.030;
-
-      // micro-tremors — high-freq noise simulating water current
+      // micro-tremors — high-freq water texture
       const microX=Math.sin(t*6.7)*0.009+Math.sin(t*11.3)*0.004;
       const microY=Math.sin(t*7.9+0.7)*0.007+Math.sin(t*13.1)*0.003;
       const microZ=Math.sin(t*5.8+1.4)*0.005;
       const microRoll=Math.sin(t*9.1+2.0)*0.012+Math.sin(t*14.3+0.5)*0.005;
 
-      // face tracking — smoothed
+      // face tracking
       trackX+=(trackTargetX-trackX)*0.045;
       trackY+=(trackTargetY-trackY)*0.045;
 
-      // swim-in → turn → settled
-      const swimP=Math.min(1,t/SWIM_DUR);
-      const swimE=1-Math.pow(1-swimP,3); // ease-out cubic
-
-      if(!swimDone){
-        // Phase 1: curved swim-in — gentle arc with Z weave and body wiggle
-        const pathY=Math.sin(swimE*Math.PI)*0.45*(1-swimE*0.4)+driftY*swimE;
-        const pathZ=Math.sin(swimE*Math.PI*1.8)*0.40;
-        const wiggleY=Math.sin(t*3.0)*0.038*(1-swimE);
-        const wiggleZ=Math.sin(t*2.4+0.8)*0.022*(1-swimE);
-        cuttle.position.set(lerp(-9,0,swimE)+microX,pathY+microY,pathZ+microZ);
-        cuttle.rotation.y=wiggleY;
-        cuttle.rotation.x=lerp(-0.07,0,swimE)+wiggleZ+idlePit*swimE*0.5;
-        cuttle.rotation.z=Math.sin(t*1.9)*0.018*(1-swimE)+idleRoll*swimE;
-        if(swimP>=1){ swimDone=true; startCamera(); }
-      } else if(!turnDone){
-        // Phase 2: ease-in-out turn, gradually blend in position-based tracking
-        const turnP=Math.min(1,(t-SWIM_DUR)/TURN_DUR);
-        const turnE=turnP<0.5?2*turnP*turnP:1-Math.pow(-2*turnP+2,2)/2;
-        cuttle.position.set(driftX+trackX*turnE*2.0+microX,driftY+trackY*(-1.2)*turnE+microY,microZ);
-        cuttle.rotation.y=lerp(0,-Math.PI/2,turnE)+idleYaw*0.3;
-        cuttle.rotation.x=idlePit*0.2;
-        cuttle.rotation.z=idleRoll*0.4+microRoll;
-        if(turnP>=1){ turnDone=true; }
-      } else {
-        // Phase 3: body translates toward face, almost no rotation
-        cuttle.position.set(driftX+trackX*2.0+microX,driftY+trackY*(-1.2)+microY,microZ);
-        cuttle.rotation.y=-Math.PI/2+idleYaw*0.2;
-        cuttle.rotation.x=idlePit*0.2;
-        cuttle.rotation.z=idleRoll*0.4+microRoll;
+      // random current impulse — fires every 2–5.5 s
+      if(t>nextImpulseT){
+        const a=Math.random()*Math.PI*2,s=0.04+Math.random()*0.09;
+        velX+=Math.cos(a)*s; velY+=(Math.random()-0.5)*s*0.7; velZ+=(Math.random()-0.5)*s*0.22;
+        nextImpulseT=t+2.0+Math.random()*3.5;
       }
+      // spring toward face target + damping
+      velX+=(trackX*2.0-posX)*0.003; velY+=(trackY*(-1.2)-posY)*0.003; velZ+=(0-posZ)*0.005;
+      velX*=0.94; velY*=0.94; velZ*=0.94;
+      posX+=velX; posY+=velY; posZ+=velZ;
 
-      const drag=swimDone ? 0 : (1-swimE)*0.30;
-      const finSpeed=swimDone ? cur.speed : Math.max(2.8,cur.speed);
+      // body leans subtly into direction of travel
+      const leanRoll=Math.sin(t*0.13)*0.010+microRoll-velX*0.18;
+      const leanPit =Math.sin(t*0.17+1.1)*0.010-velY*0.12;
+
+      cuttle.position.set(posX+microX,posY+microY,posZ+microZ);
+      cuttle.rotation.y=-Math.PI/2;
+      cuttle.rotation.x=leanPit;
+      cuttle.rotation.z=leanRoll;
+
+      const velmag=Math.sqrt(velX*velX+velY*velY+velZ*velZ);
+      const drag=0;
+      const finSpeed=cur.speed+velmag*6;
 
       // body breathe — layered for organic rise and fall
       const bf=0.55+cur.speed*0.10;
@@ -525,7 +506,7 @@
         m.uniforms.uCol.value.set(cur.colorC[0]*0.28+0.03,cur.colorC[1]*0.22+0.20,cur.colorC[2]*0.32+0.32);
       });
 
-      updateFins(t,finSpeed);
+      updateFins(t,finSpeed,velmag);
       updatePaddleArms(t,cur.speed,drag);
       controls.update();
       composer.render();
@@ -581,6 +562,7 @@
           transitionTo('calm');
         });
     }
+    startCamera();
   </script>
 
 </body>
