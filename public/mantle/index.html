@@ -188,14 +188,14 @@
     // ── body profile: oval cross-section, closes to zero at both ends ─────────
     function getProfile(u){
       let rZ,rY;
-      if      (u<0.07){ const s=u/0.07; rZ=s*0.06; rY=s*0.04; }
-      else if (u<0.28){ const s=(u-0.07)/0.21; rZ=0.06+1.19*s; rY=0.04+0.52*s; }
-      else if (u<0.68){ rZ=1.25; rY=0.56; }
-      else if (u<0.84){ const s=(u-0.68)/0.16; rZ=1.25*(1-0.34*s); rY=0.56*(1-0.37*s); }
+      if      (u<0.06){ const s=u/0.06; rZ=s*0.06; rY=s*0.032; }
+      else if (u<0.24){ const s=(u-0.06)/0.18; rZ=0.06+1.39*s; rY=0.032+0.318*s; }
+      else if (u<0.72){ rZ=1.45; rY=0.35; }
+      else if (u<0.86){ const s=(u-0.72)/0.14; rZ=1.45*(1-0.42*s); rY=0.35*(1-0.40*s); }
       else { // head closes cleanly to zero — no hole
-        const s=(u-0.84)/0.16;
-        const f=Math.pow(1-s,0.78);
-        rZ=1.25*0.66*f; rY=0.56*0.63*f;
+        const s=(u-0.86)/0.14;
+        const f=Math.pow(1-s,0.72);
+        rZ=1.45*0.58*f; rY=0.35*0.60*f;
       }
       // Clamp to tiny minimum so tips never fully collapse — prevents degenerate
       // triangles that produce NaN normals and break bounding sphere computation.
@@ -295,9 +295,9 @@
       mesh.frustumCulled=false;
       const group=new THREE.Group();
       // All arms share the same root — directly below the head, centred in Z
-      group.position.set(2.30,-0.12,0);
+      group.position.set(2.30,-0.06,0);
       group.rotation.x=spreadZ; // fans left/right
-      group.rotation.z=-0.10;   // slight forward lean
+      group.rotation.z=-0.62;   // forward-pointing, slight downward droop
       group.add(mesh); cuttle.add(group);
       paddleArms.push({group,mesh,spreadZ,length,baseHW,curl,isFeeder});
       return {group,mesh};
@@ -318,7 +318,7 @@
         // Gentle organic sway
         const sway=Math.sin(t*(0.68+speed*0.15)+idx*0.72)*0.055;
         group.rotation.x=spreadZ+sway;
-        group.rotation.z=-0.10+drag+Math.sin(t*0.42+idx*0.35)*0.04;
+        group.rotation.z=-0.62+drag+Math.sin(t*0.42+idx*0.35)*0.04;
 
         // Animate vertex positions for gentle wave ripple along each arm
         const pos=mesh.geometry.attributes.position;
@@ -456,12 +456,12 @@
       uniforms.uPulse.value=cur.pulse;
       uniforms.uCamPos.value.copy(camera.position);
 
-      // idle motion — layered sinusoids for organic feel
-      const idleYaw =Math.sin(t*0.20)*0.048+Math.sin(t*0.33)*0.022+Math.sin(t*0.51)*0.010;
-      const idlePit =Math.sin(t*0.17+1.1)*0.028+Math.sin(t*0.29+0.7)*0.012;
-      const idleRoll=Math.sin(t*0.13)*0.018+Math.sin(t*0.22)*0.009;
-      const driftX  =Math.sin(t*0.19)*0.16+Math.sin(t*0.31)*0.06+Math.sin(t*0.47)*0.025;
-      const driftY  =Math.sin(t*0.23)*0.10+Math.sin(t*0.41)*0.045+Math.sin(t*0.61)*0.018;
+      // idle motion — minimal rotation, generous positional drift
+      const idleYaw =Math.sin(t*0.20)*0.018+Math.sin(t*0.33)*0.008;
+      const idlePit =Math.sin(t*0.17+1.1)*0.012+Math.sin(t*0.29+0.7)*0.006;
+      const idleRoll=Math.sin(t*0.13)*0.010+Math.sin(t*0.22)*0.005;
+      const driftX  =Math.sin(t*0.19)*0.28+Math.sin(t*0.31)*0.12+Math.sin(t*0.47)*0.05;
+      const driftY  =Math.sin(t*0.23)*0.18+Math.sin(t*0.41)*0.08+Math.sin(t*0.61)*0.030;
 
       // micro-tremors — high-freq noise simulating water current
       const microX=Math.sin(t*6.7)*0.009+Math.sin(t*11.3)*0.004;
@@ -489,20 +489,20 @@
         cuttle.rotation.z=Math.sin(t*1.9)*0.018*(1-swimE)+idleRoll*swimE;
         if(swimP>=1){ swimDone=true; startCamera(); }
       } else if(!turnDone){
-        // Phase 2: ease-in-out turn to face camera
+        // Phase 2: ease-in-out turn, gradually blend in position-based tracking
         const turnP=Math.min(1,(t-SWIM_DUR)/TURN_DUR);
         const turnE=turnP<0.5?2*turnP*turnP:1-Math.pow(-2*turnP+2,2)/2;
-        cuttle.position.set(driftX+microX,driftY+microY,microZ);
-        cuttle.rotation.y=lerp(0,-Math.PI/2,turnE)+idleYaw*0.5;
-        cuttle.rotation.x=lerp(0,trackY*(-0.28),turnE)+idlePit;
-        cuttle.rotation.z=idleRoll+microRoll;
+        cuttle.position.set(driftX+trackX*turnE*2.0+microX,driftY+trackY*(-1.2)*turnE+microY,microZ);
+        cuttle.rotation.y=lerp(0,-Math.PI/2,turnE)+idleYaw*0.3;
+        cuttle.rotation.x=idlePit*0.2;
+        cuttle.rotation.z=idleRoll*0.4+microRoll;
         if(turnP>=1){ turnDone=true; }
       } else {
-        // Phase 3: face-forward, alive and following
-        cuttle.position.set(driftX+microX,driftY+microY,microZ);
-        cuttle.rotation.y=-Math.PI/2+trackX*0.38+idleYaw;
-        cuttle.rotation.x=trackY*(-0.28)+idlePit;
-        cuttle.rotation.z=idleRoll+microRoll;
+        // Phase 3: body translates toward face, almost no rotation
+        cuttle.position.set(driftX+trackX*2.0+microX,driftY+trackY*(-1.2)+microY,microZ);
+        cuttle.rotation.y=-Math.PI/2+idleYaw*0.2;
+        cuttle.rotation.x=idlePit*0.2;
+        cuttle.rotation.z=idleRoll*0.4+microRoll;
       }
 
       const drag=swimDone ? 0 : (1-swimE)*0.30;
