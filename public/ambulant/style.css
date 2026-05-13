@@ -1,0 +1,196 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  background: #050709;
+  color: #c9c2b8;
+  font-family: 'Cormorant Garamond', serif;
+  overflow: hidden;
+}
+
+#back {
+  position: fixed;
+  top: 28px;
+  left: 32px;
+  font-size: 12px;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.4);
+  text-decoration: none;
+  z-index: 100;
+  transition: color 0.3s;
+}
+#back:hover { color: rgba(201,194,184,0.9); }
+
+/* ── state machine ── */
+.state {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.9s ease;
+}
+.state.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+/* ── intro ── */
+#state-intro h1 {
+  font-size: clamp(3rem, 7vw, 6rem);
+  font-weight: 300;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: #e8e2da;
+  margin-bottom: 1.2rem;
+}
+#state-intro .desc {
+  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+  font-style: italic;
+  font-weight: 300;
+  color: rgba(201,194,184,0.55);
+  max-width: 480px;
+  text-align: center;
+  line-height: 1.75;
+  margin-bottom: 3.5rem;
+}
+#begin-btn {
+  background: none;
+  border: 1px solid rgba(201,194,184,0.25);
+  color: rgba(201,194,184,0.7);
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.8rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  padding: 0.8rem 3rem;
+  cursor: pointer;
+  transition: border-color 0.3s, color 0.3s;
+}
+#begin-btn:hover {
+  border-color: rgba(201,194,184,0.7);
+  color: #e8e2da;
+}
+
+/* ── preparing ── */
+#state-preparing p {
+  font-size: 0.78rem;
+  letter-spacing: 0.3em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.3);
+  animation: slow-pulse 2s ease-in-out infinite;
+}
+
+/* ── countdown ── */
+#countdown-number {
+  font-size: clamp(10rem, 25vw, 20rem);
+  font-weight: 300;
+  color: #e8e2da;
+  line-height: 1;
+  animation: count-in 1s cubic-bezier(0.16,1,0.3,1) both;
+}
+@keyframes count-in {
+  from { opacity: 0; transform: scale(1.15); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+/* ── recording ── */
+#progress-track {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 1px;
+  background: rgba(201,194,184,0.08);
+}
+#progress-fill {
+  height: 100%;
+  background: rgba(201,194,184,0.55);
+  width: 0%;
+  transition: width 0.25s linear;
+}
+#state-recording {
+  justify-content: flex-end;
+  padding-bottom: 3rem;
+}
+#state-recording p {
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.25);
+}
+#timer-text {
+  font-size: 0.75rem;
+  letter-spacing: 0.28em;
+  color: rgba(201,194,184,0.18);
+  margin-top: 0.5rem;
+}
+
+/* ── processing ── */
+#state-processing p {
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 300;
+  font-style: italic;
+  color: rgba(201,194,184,0.45);
+  animation: slow-pulse 2.5s ease-in-out infinite;
+}
+@keyframes slow-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 1; }
+}
+
+/* ── result ── */
+#state-result { padding: 0; }
+
+#result-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+#result-overlay {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 4rem clamp(2rem, 6vw, 5rem);
+  background: linear-gradient(transparent, rgba(5,7,9,0.82) 35%, rgba(5,7,9,0.96) 100%);
+}
+#landscape-label {
+  font-size: 0.7rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.4);
+  margin-bottom: 1rem;
+}
+#prose-text {
+  font-size: clamp(1.1rem, 2.2vw, 1.55rem);
+  font-style: italic;
+  font-weight: 300;
+  color: #e8e2da;
+  max-width: 680px;
+  line-height: 1.65;
+  margin-bottom: 2.5rem;
+}
+#again-btn {
+  background: none;
+  border: none;
+  font-family: 'Cormorant Garamond', serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.3);
+  cursor: pointer;
+  padding: 0;
+  transition: color 0.3s;
+}
+#again-btn:hover { color: rgba(201,194,184,0.75); }
+
+/* ── camera (processing only, hidden) ── */
+#cam {
+  position: fixed;
+  width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
+}

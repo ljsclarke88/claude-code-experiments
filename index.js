@@ -80,6 +80,81 @@ Return only the JSON object. No explanation, no markdown.`
   }
 });
 
+// ── ambulant ──────────────────────────────────────────────────────────────────
+const ambulantLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 4,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: "too many requests — please wait a moment" },
+});
+
+const sceneModel = genAI.getGenerativeModel({
+  model: "gemini-2.5-flash",
+  systemInstruction: `You are a psychogeographer and landscape artist working in the tradition of the Situationist International. You receive movement biometrics extracted from a 10-second walk and must divine what landscape the body was unconsciously enacting.
+
+The landscape IS the body. The body does not walk through a landscape — it performs one. Your role is to name that landscape precisely and render it in language and image.
+
+Each metric is a float 0–1:
+- cadence:   0 = very slow, meditative pace   /  1 = fast urban stride
+- vertOsc:   0 = gliding, flat terrain         /  1 = high bounce, rough/uneven ground
+- symmetry:  0 = wild, irregular, organic      /  1 = formal, ordered, bilateral
+- armSwing:  0 = constrained, enclosed space   /  1 = open, unimpeded, vast
+- lean:      0 = upright, contemplative        /  1 = forward, purposeful, transitional
+- energy:    0 = still, minimal movement       /  1 = vigorous, dynamic
+
+Return ONLY valid JSON with these three fields:
+{
+  "landscape": "concise place name, 2–5 words",
+  "prose": "2–3 sentences of psychogeographic prose written in present tense. Describe only the landscape — its textures, light quality, ecological or geological character, atmosphere. No mention of walking, bodies, or people.",
+  "imagePrompt": "A detailed prompt for Imagen 3. Describe a cinematic landscape: subject, specific light (time of day, quality), ecological/geological detail, atmosphere, mood. Reference a specific painter, photographer or visual tradition. No people, no figures. End with: photorealistic, cinematic, 4:3 aspect ratio, high detail."
+}`
+});
+
+app.post("/api/ambulant/scene", ambulantLimiter, async (req, res) => {
+  try {
+    const { metrics } = req.body;
+    if (!metrics || typeof metrics !== 'object') return res.status(400).json({ error: "invalid metrics" });
+
+    const { cadence=0, vertOsc=0, symmetry=0, armSwing=0, lean=0, energy=0 } = metrics;
+
+    // Step 1: generate scene description + image prompt via Gemini
+    const sceneRes = await sceneModel.generateContent(
+      `cadence:${cadence.toFixed(2)} vertOsc:${vertOsc.toFixed(2)} symmetry:${symmetry.toFixed(2)} armSwing:${armSwing.toFixed(2)} lean:${lean.toFixed(2)} energy:${energy.toFixed(2)}`
+    );
+    const raw   = sceneRes.response.text().trim();
+    const match = raw.match(/\{[\s\S]*?\}/);
+    if (!match) throw new Error("bad scene JSON");
+    const scene = JSON.parse(match[0]);
+
+    // Step 2: generate image via Imagen 3
+    const imgRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${process.env.GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          instances: [{ prompt: scene.imagePrompt }],
+          parameters: { sampleCount: 1, aspectRatio: "4:3" }
+        })
+      }
+    );
+    const imgData = await imgRes.json();
+    const prediction = imgData.predictions?.[0];
+    if (!prediction?.bytesBase64Encoded) throw new Error("image generation failed");
+
+    res.json({
+      landscape: scene.landscape,
+      prose:     scene.prose,
+      image:     prediction.bytesBase64Encoded,
+      mimeType:  prediction.mimeType || "image/png"
+    });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: "could not generate scene" });
+  }
+});
+
 if (process.env.NODE_ENV !== 'production') {
   app.listen(port, () => {
     console.log(`Haiku app listening at http://localhost:${port}`);
