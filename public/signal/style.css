@@ -10,8 +10,7 @@ html, body {
 
 #back {
   position: fixed;
-  top: 28px;
-  left: 32px;
+  top: 28px; left: 32px;
   font-size: 12px;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -22,7 +21,12 @@ html, body {
 }
 #back:hover { color: rgba(201,194,184,0.9); }
 
-/* ── state machine ── */
+#canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+}
+
 .state {
   position: fixed;
   inset: 0;
@@ -33,11 +37,17 @@ html, body {
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.9s ease;
+  z-index: 2;
 }
 .state.active {
   opacity: 1;
   pointer-events: all;
 }
+
+/* result passes clicks through to canvas for OrbitControls */
+#state-result,
+#state-result.active { pointer-events: none; }
+#again-btn           { pointer-events: all; }
 
 /* ── intro ── */
 #state-intro h1 {
@@ -49,13 +59,13 @@ html, body {
   margin-bottom: 1.2rem;
 }
 #state-intro .desc {
-  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
+  font-size: clamp(0.95rem, 1.5vw, 1.1rem);
   font-style: italic;
   font-weight: 300;
   color: rgba(201,194,184,0.55);
-  max-width: 480px;
+  max-width: 460px;
   text-align: center;
-  line-height: 1.75;
+  line-height: 1.8;
   margin-bottom: 3.5rem;
 }
 #begin-btn {
@@ -75,8 +85,8 @@ html, body {
   color: #e8e2da;
 }
 
-/* ── preparing ── */
-#state-preparing p {
+/* ── permissions ── */
+#state-permissions p {
   font-size: 0.78rem;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -84,20 +94,56 @@ html, body {
   animation: slow-pulse 2s ease-in-out infinite;
 }
 
-/* ── countdown ── */
-#countdown-number {
-  font-size: clamp(10rem, 25vw, 20rem);
-  font-weight: 300;
-  color: #e8e2da;
-  line-height: 1;
-  animation: count-in 1s cubic-bezier(0.16,1,0.3,1) both;
-}
-@keyframes count-in {
-  from { opacity: 0; transform: scale(1.15); }
-  to   { opacity: 1; transform: scale(1); }
+/* ── collecting ── */
+#sample-count {
+  position: fixed;
+  top: 28px; right: 32px;
+  font-size: 0.68rem;
+  letter-spacing: 0.35em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.3);
 }
 
-/* ── recording ── */
+#signal-indicator {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.7rem;
+}
+#signal-label {
+  font-size: 0.65rem;
+  letter-spacing: 0.4em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.28);
+}
+#signal-track {
+  width: 180px;
+  height: 1px;
+  background: rgba(201,194,184,0.1);
+}
+#signal-fill {
+  height: 100%;
+  width: 0%;
+  background: rgba(201,194,184,0.65);
+  transition: width 0.5s ease;
+}
+
+#collecting-bottom {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding-bottom: 3rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.2rem;
+}
+#collecting-hint {
+  font-size: 0.72rem;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+  color: rgba(201,194,184,0.2);
+  font-style: italic;
+}
 #progress-track {
   position: fixed;
   top: 0; left: 0; right: 0;
@@ -106,25 +152,9 @@ html, body {
 }
 #progress-fill {
   height: 100%;
-  background: rgba(201,194,184,0.55);
+  background: rgba(201,194,184,0.5);
   width: 0%;
-  transition: width 0.25s linear;
-}
-#state-recording {
-  justify-content: flex-end;
-  padding-bottom: 3rem;
-}
-#state-recording p {
-  font-size: 0.75rem;
-  letter-spacing: 0.28em;
-  text-transform: uppercase;
-  color: rgba(201,194,184,0.25);
-}
-#timer-text {
-  font-size: 0.75rem;
-  letter-spacing: 0.28em;
-  color: rgba(201,194,184,0.18);
-  margin-top: 0.5rem;
+  transition: width 0.2s linear;
 }
 
 /* ── processing ── */
@@ -135,44 +165,24 @@ html, body {
   color: rgba(201,194,184,0.45);
   animation: slow-pulse 2.5s ease-in-out infinite;
 }
-@keyframes slow-pulse {
-  0%, 100% { opacity: 0.3; }
-  50%       { opacity: 1; }
-}
 
 /* ── result ── */
-#state-result { padding: 0; }
-
-#result-image {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+#state-result {
+  justify-content: flex-end;
 }
-
 #result-overlay {
-  position: absolute;
-  bottom: 0; left: 0; right: 0;
-  padding: 4rem clamp(2rem, 6vw, 5rem);
-  background: linear-gradient(transparent, rgba(5,7,9,0.82) 35%, rgba(5,7,9,0.96) 100%);
+  width: 100%;
+  padding: 5rem clamp(2rem, 5vw, 4rem) 3rem;
+  background: linear-gradient(transparent, rgba(5,7,9,0.75) 55%);
+  display: flex;
+  flex-direction: column;
+  gap: 1.4rem;
 }
-#landscape-label {
-  font-size: 0.7rem;
-  letter-spacing: 0.4em;
+#result-stats {
+  font-size: 0.68rem;
+  letter-spacing: 0.35em;
   text-transform: uppercase;
-  color: rgba(201,194,184,0.4);
-  margin-bottom: 1rem;
-}
-#prose-text {
-  font-size: clamp(1.1rem, 2.2vw, 1.55rem);
-  font-style: italic;
-  font-weight: 300;
-  color: #e8e2da;
-  max-width: 680px;
-  line-height: 1.65;
-  margin-bottom: 2.5rem;
+  color: rgba(201,194,184,0.35);
 }
 #again-btn {
   background: none;
@@ -188,18 +198,7 @@ html, body {
 }
 #again-btn:hover { color: rgba(201,194,184,0.75); }
 
-/* ── camera ── */
-#cam {
-  position: fixed;
-  inset: 0;
-  width: 100%; height: 100%;
-  object-fit: cover;
-  transform: scaleX(-1);
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity 0.5s ease;
-  z-index: 1;
+@keyframes slow-pulse {
+  0%, 100% { opacity: 0.3; }
+  50%       { opacity: 1; }
 }
-#cam.visible { opacity: 1; }
-
-.state { z-index: 2; }

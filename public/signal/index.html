@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Signal</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;1,300;1,400&display=swap">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+<a href="/" id="back">← Lab</a>
+<canvas id="canvas"></canvas>
+
+<!-- intro -->
+<div class="state active" id="state-intro">
+  <h1>Signal</h1>
+  <p class="desc">Walk your space for sixty seconds. The strength of your network at each step is measured and rendered as a three-dimensional landscape — peaks where signal is strong, valleys where it fails.</p>
+  <button id="begin-btn">begin</button>
+</div>
+
+<!-- permissions -->
+<div class="state" id="state-permissions">
+  <p>requesting location…</p>
+</div>
+
+<!-- collecting -->
+<div class="state" id="state-collecting">
+  <div id="sample-count">0 samples</div>
+  <div id="signal-indicator">
+    <div id="signal-label">signal</div>
+    <div id="signal-track"><div id="signal-fill"></div></div>
+  </div>
+  <div id="collecting-bottom">
+    <p id="collecting-hint">walk slowly through your space</p>
+    <div id="progress-track"><div id="progress-fill"></div></div>
+  </div>
+</div>
+
+<!-- processing -->
+<div class="state" id="state-processing">
+  <p>rendering the landscape…</p>
+</div>
+
+<!-- result -->
+<div class="state" id="state-result">
+  <div id="result-overlay">
+    <div id="result-stats"></div>
+    <button id="again-btn">begin again</button>
+  </div>
+</div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+  import * as THREE from 'three';
+  import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+  // ── state ──────────────────────────────────────────────────────────────────
+  function show(id) {
+    document.querySelectorAll('.state').forEach(s => s.classList.remove('active'));
+    document.getElementById(id)?.classList.add('active');
+  }
+
+  // ── renderer ───────────────────────────────────────────────────────────────
+  const canvas   = document.getElementById('canvas');
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+  renderer.setClearColor(0x050709, 1);
+
+  const scene = new THREE.Scene();
+  scene.fog   = new THREE.FogExp2(0x050709, 0.016);
+
+  const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 300);
+  camera.position.set(0, 30, 12);
+  camera.lookAt(0, 0, 0);
+
+  // Lights
+  const ambient = new THREE.AmbientLight(0xffffff, 0.2);
+  scene.add(ambient);
+  const sun = new THREE.DirectionalLight(0xfff4e0, 1.5);
+  sun.position.set(10, 25, 12);
+  scene.add(sun);
+  const fill = new THREE.DirectionalLight(0x1a3060, 0.5);
+  fill.position.set(-12, 8, -10);
+  scene.add(fill);
+
+  // OrbitControls — disabled until result
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.enabled         = false;
+  controls.autoRotate      = true;
+  controls.autoRotateSpeed = 0.35;
+  controls.enableDamping   = true;
+  controls.dampingFactor   = 0.06;
+  controls.minDistance     = 8;
+  controls.maxDistance     = 80;
+  controls.maxPolarAngle   = Math.PI / 2.05;
+  controls.target.set(0, 0, 0);
+
+  window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+  });
+
+  // Base grid
+  const grid = new THREE.GridHelper(60, 60, 0x0d1114, 0x0a0d0f);
+  scene.add(grid);
+
+  // ── render loop ────────────────────────────────────────────────────────────
+  let terrainMesh = null, wireMesh = null;
+
+  function animate() {
+    requestAnimationFrame(animate);
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  animate();
+
+  // ── colour ramp ────────────────────────────────────────────────────────────
+  const COL_LOW  = new THREE.Color(0x140830); // deep indigo
+  const COL_MID  = new THREE.Color(0x0a6878); // teal
+  const COL_HIGH = new THREE.Color(0xe8e2da); // warm white
+
+  function qualityColor(q) {
+    const c = new THREE.Color();
+    if (q < 0.5) c.lerpColors(COL_LOW,  COL_MID,  q * 2);
+    else          c.lerpColors(COL_MID,  COL_HIGH, (q - 0.5) * 2);
+    return c;
+  }
+
+  // ── live dots during collection ────────────────────────────────────────────
+  let dotMesh = null;
+  const dotPos = [], dotCol = [];
+
+  function addDot(lx, lz, quality) {
+    if (dotMesh) { scene.remove(dotMesh); dotMesh.geometry.dispose(); dotMesh.material.dispose(); }
+    dotPos.push(lx, quality * 0.4, lz);
+    const c = qualityColor(quality);
+    dotCol.push(c.r, c.g, c.b);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute([...dotPos], 3));
+    geo.setAttribute('color',    new THREE.Float32BufferAttribute([...dotCol], 3));
+    dotMesh = new THREE.Points(geo, new THREE.PointsMaterial({
+      size: 2.2, vertexColors: true, sizeAttenuation: true, transparent: true, opacity: 0.9
+    }));
+    scene.add(dotMesh);
+  }
+
+  function updateCollectionCamera() {
+    if (!samples.length) return;
+    const xs = samples.map(s => s.lx), zs = samples.map(s => s.lz);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+    const ext = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 10);
+    const d   = Math.max(ext * 2.0, 28);
+    camera.position.set(cx, d, cz + d * 0.15);
+    camera.lookAt(cx, 0, cz);
+  }
+
+  // ── signal measurement ─────────────────────────────────────────────────────
+  async function measureQuality() {
+    const t0 = performance.now();
+    try {
+      await fetch(`https://www.gstatic.com/generate_204?_=${Date.now()}`, {
+        mode: 'no-cors', cache: 'no-store'
+      });
+      const ms = performance.now() - t0;
+      // 15ms = excellent (1.0), 500ms+ = poor (0.0)
+      let q = Math.max(0, Math.min(1, 1 - (ms - 15) / 485));
+      if (navigator.connection?.downlink > 0) {
+        q = q * 0.6 + Math.min(1, navigator.connection.downlink / 8) * 0.4;
+      }
+      return q;
+    } catch {
+      return 0;
+    }
+  }
+
+  // ── IDW interpolation ──────────────────────────────────────────────────────
+  function idw(x, z, pts, power = 2.5) {
+    let wSum = 0, vSum = 0;
+    for (const p of pts) {
+      const d = Math.hypot(x - p.x, z - p.z);
+      if (d < 0.0001) return p.quality;
+      const w = 1 / d ** power;
+      wSum += w;
+      vSum += w * p.quality;
+    }
+    return wSum ? vSum / wSum : 0.5;
+  }
+
+  // ── terrain build ──────────────────────────────────────────────────────────
+  function buildTerrain(rawSamples) {
+    if (terrainMesh) { scene.remove(terrainMesh); terrainMesh.geometry.dispose(); }
+    if (wireMesh)    { scene.remove(wireMesh);    wireMesh.geometry.dispose(); }
+
+    // Normalise sample coordinates to ~±10 units centred at origin
+    const xs = rawSamples.map(s => s.lx), zs = rawSamples.map(s => s.lz);
+    const cx = (Math.min(...xs) + Math.max(...xs)) / 2;
+    const cz = (Math.min(...zs) + Math.max(...zs)) / 2;
+    const spread = Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...zs) - Math.min(...zs), 1);
+    const scale  = 20 / spread;
+
+    const pts = rawSamples.map(s => ({
+      x: (s.lx - cx) * scale,
+      z: (s.lz - cz) * scale,
+      quality: s.quality
+    }));
+
+    const SIZE = 28, SEGS = 80;
+    const geo  = new THREE.PlaneGeometry(SIZE, SIZE, SEGS, SEGS);
+    geo.rotateX(-Math.PI / 2);
+
+    const pos  = geo.attributes.position;
+    const cols = new Float32Array(pos.count * 3);
+    const maxH = 5.5;
+
+    for (let i = 0; i < pos.count; i++) {
+      const q = idw(pos.getX(i), pos.getZ(i), pts);
+      pos.setY(i, q * maxH);
+      const c = qualityColor(q);
+      cols[i * 3] = c.r; cols[i * 3 + 1] = c.g; cols[i * 3 + 2] = c.b;
+    }
+
+    pos.needsUpdate = true;
+    geo.setAttribute('color', new THREE.BufferAttribute(cols, 3));
+    geo.computeVertexNormals();
+
+    terrainMesh = new THREE.Mesh(geo, new THREE.MeshPhongMaterial({
+      vertexColors: true, shininess: 80, specular: new THREE.Color(0x1a2f55)
+    }));
+    scene.add(terrainMesh);
+
+    // Subtle topographic wireframe overlay
+    wireMesh = new THREE.LineSegments(
+      new THREE.WireframeGeometry(geo),
+      new THREE.LineBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.04 })
+    );
+    scene.add(wireMesh);
+  }
+
+  // ── collection flow ────────────────────────────────────────────────────────
+  const DURATION = 60000, SAMPLE_MS = 2000;
+  let samples = [], origin = null, collecting = false, watchId = null, lastPos = null;
+
+  function toLocal(lat, lng) {
+    const lx = (lng - origin.lng) * 111000 * Math.cos(origin.lat * Math.PI / 180);
+    const lz = (lat - origin.lat) * 111000;
+    return { lx, lz };
+  }
+
+  async function startCollection() {
+    samples = []; origin = null; lastPos = null; collecting = true;
+    dotPos.length = 0; dotCol.length = 0;
+    if (dotMesh) { scene.remove(dotMesh); dotMesh = null; }
+
+    // Reset camera to default
+    camera.position.set(0, 30, 12);
+    camera.lookAt(0, 0, 0);
+
+    show('state-collecting');
+    document.getElementById('progress-fill').style.width = '0%';
+    document.getElementById('sample-count').textContent  = '0 samples';
+    document.getElementById('signal-fill').style.width   = '0%';
+
+    watchId = navigator.geolocation.watchPosition(
+      pos => {
+        lastPos = pos;
+        if (!origin) origin = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+      },
+      err => console.warn('GPS:', err.message),
+      { enableHighAccuracy: true, maximumAge: 0, timeout: 15000 }
+    );
+
+    const start = Date.now();
+
+    const sampleTimer = setInterval(async () => {
+      if (!collecting || !lastPos) return;
+      const { latitude: lat, longitude: lng } = lastPos.coords;
+      if (!origin) return;
+      const { lx, lz } = toLocal(lat, lng);
+      const q = await measureQuality();
+      samples.push({ lx, lz, quality: q });
+      document.getElementById('sample-count').textContent = `${samples.length} samples`;
+      document.getElementById('signal-fill').style.width  = Math.round(q * 100) + '%';
+      addDot(lx, lz, q);
+      updateCollectionCamera();
+    }, SAMPLE_MS);
+
+    const progressTimer = setInterval(() => {
+      const pct = Math.min(100, (Date.now() - start) / DURATION * 100);
+      document.getElementById('progress-fill').style.width = pct + '%';
+      if (pct >= 100) {
+        clearInterval(progressTimer);
+        clearInterval(sampleTimer);
+        finishCollection();
+      }
+    }, 120);
+  }
+
+  async function finishCollection() {
+    collecting = false;
+    navigator.geolocation.clearWatch(watchId);
+
+    if (samples.length < 3) {
+      document.querySelector('#state-intro .desc').textContent =
+        'Not enough location data collected. Try outdoors with mobile GPS, or check that location is allowed in your browser settings.';
+      show('state-intro');
+      return;
+    }
+
+    show('state-processing');
+    await new Promise(r => setTimeout(r, 900));
+
+    buildTerrain(samples);
+
+    // Remove dots — terrain takes over
+    if (dotMesh) { scene.remove(dotMesh); dotMesh.geometry.dispose(); dotMesh = null; }
+
+    // Orbit camera to angled view
+    camera.position.set(0, 20, 26);
+    camera.lookAt(0, 0, 0);
+    controls.target.set(0, 0, 0);
+    controls.enabled = true;
+    controls.update();
+
+    const avg  = samples.reduce((s, p) => s + p.quality, 0) / samples.length;
+    const peak = Math.max(...samples.map(s => s.quality));
+    document.getElementById('result-stats').textContent =
+      `${samples.length} samples · ${Math.round(avg * 100)}% average · ${Math.round(peak * 100)}% peak`;
+
+    show('state-result');
+  }
+
+  // ── begin ──────────────────────────────────────────────────────────────────
+  document.getElementById('begin-btn').addEventListener('click', async () => {
+    show('state-permissions');
+    try {
+      await new Promise((res, rej) => {
+        navigator.geolocation.getCurrentPosition(res, rej, {
+          enableHighAccuracy: true, timeout: 15000
+        });
+      });
+      startCollection();
+    } catch {
+      document.querySelector('#state-intro .desc').textContent =
+        'Location access is required. Please allow it in your browser settings and try again.';
+      show('state-intro');
+    }
+  });
+
+  document.getElementById('again-btn').addEventListener('click', () => {
+    controls.enabled = false;
+    if (terrainMesh) { scene.remove(terrainMesh); terrainMesh.geometry.dispose(); terrainMesh = null; }
+    if (wireMesh)    { scene.remove(wireMesh);    wireMesh.geometry.dispose();    wireMesh    = null; }
+    show('state-intro');
+  });
+</script>
+
+</body>
+</html>

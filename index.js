@@ -122,10 +122,16 @@ app.post("/api/ambulant/scene", ambulantLimiter, async (req, res) => {
     const sceneRes = await sceneModel.generateContent(
       `cadence:${cadence.toFixed(2)} vertOsc:${vertOsc.toFixed(2)} symmetry:${symmetry.toFixed(2)} armSwing:${armSwing.toFixed(2)} lean:${lean.toFixed(2)} energy:${energy.toFixed(2)}`
     );
-    const raw   = sceneRes.response.text().trim();
-    const match = raw.match(/\{[\s\S]*?\}/);
-    if (!match) throw new Error("bad scene JSON");
-    const scene = JSON.parse(match[0]);
+    const raw = sceneRes.response.text().trim();
+    let scene;
+    try {
+      scene = JSON.parse(raw);
+    } catch {
+      const cb = raw.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+      const block = cb ? cb[1] : raw.match(/\{[\s\S]*\}/)?.[0];
+      if (!block) { console.error("raw Gemini response:", raw); throw new Error("bad scene JSON"); }
+      scene = JSON.parse(block);
+    }
 
     // Step 2: generate image via Imagen 3
     const imgRes = await fetch(
@@ -140,8 +146,15 @@ app.post("/api/ambulant/scene", ambulantLimiter, async (req, res) => {
       }
     );
     const imgData = await imgRes.json();
+    if (!imgRes.ok || imgData.error) {
+      console.error("Imagen error:", JSON.stringify(imgData));
+      throw new Error(`Imagen: ${imgData.error?.message || imgRes.status}`);
+    }
     const prediction = imgData.predictions?.[0];
-    if (!prediction?.bytesBase64Encoded) throw new Error("image generation failed");
+    if (!prediction?.bytesBase64Encoded) {
+      console.error("Imagen no prediction:", JSON.stringify(imgData));
+      throw new Error("image generation failed");
+    }
 
     res.json({
       landscape: scene.landscape,

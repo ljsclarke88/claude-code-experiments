@@ -239,8 +239,10 @@
     show('state-preparing');
     try {
       await Promise.all([initPose(), startCamera()]);
+      video.classList.add('visible');
       await countdown();
       const frames  = await record();
+      video.classList.remove('visible');
       show('state-processing');
 
       const metrics = extractMetrics(frames);
