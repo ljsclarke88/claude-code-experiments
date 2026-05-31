@@ -252,11 +252,6 @@
       const centre = box.getCenter(new THREE.Vector3());
       model.position.set(-centre.x, -centre.y, -centre.z);
 
-      // Shift slightly left on screen. After cuttle.rotation.y = -PI/2,
-      // local +Z maps to world -X, so increasing model.position.z moves
-      // the model left in the final view.
-      model.position.z += 3.00;
-
       // Flip 180° so head faces camera (head is at -X in the original model space;
       // after the flip it sits at +X, which the cuttle rotation maps to world +Z).
       model.rotation.y = Math.PI;
@@ -413,7 +408,7 @@
 
       // idle yaw — slow irregular look-around, ±24° over ~25–45 s cycles
       const idleYaw=Math.sin(t*0.25)*0.18+Math.sin(t*0.37+1.4)*0.09;
-      cuttle.position.set(posX+microX,posY+microY,posZ+microZ);
+      cuttle.position.set(posX+microX - 1.8, posY+microY, posZ+microZ);
       cuttle.rotation.y=-Math.PI/2+idleYaw;
       cuttle.rotation.x=leanPit;
       cuttle.rotation.z=leanRoll;
