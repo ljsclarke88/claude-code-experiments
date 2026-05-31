@@ -149,11 +149,9 @@
         float dorsal =max(0.0, vObjNormal.y);
         float ventral=max(0.0,-vObjNormal.y);
 
-        vec3 baseColor=mix(vec3(0.86,0.79,0.64),vec3(0.60,0.48,0.80),ventral*0.72);
+        vec3 baseColor=mix(vec3(0.52,0.44,0.34),vec3(0.28,0.14,0.42),ventral*0.72);
         float stripe=smoothstep(0.35,0.65,sin(vUv.x*18.0+fbm(vUv*2.2)*0.9)*0.5+0.5);
-        baseColor=mix(baseColor,vec3(0.20,0.12,0.05),stripe*dorsal*0.80);
-        float dots=cells(vUv+vec2(0.31,0.73),30.0);
-        baseColor=mix(baseColor,baseColor*1.38,dots*0.16);
+        baseColor=mix(baseColor,vec3(0.03,0.02,0.04),stripe*dorsal*0.92);
 
         // continuous shimmer — always travels head-to-tail, faster with emotion intensity
         float ssp=max(uSpeed,0.80);
@@ -177,6 +175,19 @@
         vec3 emCol=mix(uColorA,uColorB,c1);
         emCol=mix(emCol,uColorC,r1*r2*pulse);
         baseColor=mix(baseColor,emCol,pat*0.70);
+
+        // ── fingerprint flow-lines — slow-drifting contour ridges for surface depth ──
+        float fNoise=fbm(vUv*3.4+vec2(t*0.009,t*0.004));
+        float fBand =sin(vUv.x*21.0+fNoise*6.2+vUv.y*3.6)*0.5+0.5;
+        baseColor  *=mix(1.0,0.14,smoothstep(0.40,0.54,fBand)*dorsal*0.82);
+
+        // ── self-luminous chromatophore dots — cool blue + warm copper ────────────
+        float dC=cells(vUv*2.55+vec2(0.19,0.47),40.0);
+        float dW=cells(vUv*1.88+vec2(0.63,0.29),26.0);
+        vec3 coolGlow=mix(vec3(0.20,0.68,1.00),uColorC,0.30)*3.2;
+        vec3 warmGlow=vec3(1.00,0.58,0.14)*2.6;
+        baseColor=mix(baseColor,coolGlow,dC*0.60*(0.40+uPulse*0.60));
+        baseColor=mix(baseColor,warmGlow,dW*0.34*(0.36+uPulse*0.44));
 
         vec3 irid=mix(mix(uColorC,vec3(0.22,0.88,0.96),0.45),mix(uColorA,vec3(0.88,0.22,0.94),0.35),
                       sin(fr*3.14159+t*0.48)*0.5+0.5);
