@@ -46,16 +46,16 @@
 
     // ── emotion palettes ──────────────────────────────────────────────────────
     const EMOTIONS = {
-      happy:     { colorA:[1.0,0.72,0.08], colorB:[1.0,0.42,0.04], colorC:[0.98,0.95,0.25], speed:1.8,  scale:3.2, pulse:0.85 },
-      sad:       { colorA:[0.08,0.18,0.58],colorB:[0.18,0.32,0.68],colorC:[0.04,0.08,0.38], speed:0.38, scale:5.5, pulse:0.18 },
-      angry:     { colorA:[0.92,0.08,0.04],colorB:[0.72,0.28,0.0], colorC:[1.0,0.0,0.08],   speed:2.9,  scale:2.2, pulse:1.0  },
-      fearful:   { colorA:[0.28,0.08,0.38],colorB:[0.12,0.04,0.28],colorC:[0.48,0.18,0.52], speed:2.4,  scale:6.5, pulse:0.9  },
-      surprised: { colorA:[0.15,0.88,0.98],colorB:[0.78,0.94,1.0], colorC:[0.08,0.58,0.92], speed:2.6,  scale:1.8, pulse:0.95 },
-      disgusted: { colorA:[0.32,0.42,0.08],colorB:[0.18,0.28,0.04],colorC:[0.48,0.38,0.12], speed:0.55, scale:4.2, pulse:0.32 },
-      neutral:   { colorA:[0.22,0.48,0.42],colorB:[0.14,0.36,0.38],colorC:[0.32,0.52,0.48], speed:0.75, scale:4.8, pulse:0.38 },
-      calm:      { colorA:[0.08,0.48,0.52],colorB:[0.12,0.58,0.48],colorC:[0.04,0.32,0.44], speed:0.32, scale:6.2, pulse:0.22 },
-      excited:   { colorA:[0.92,0.08,0.58],colorB:[0.68,0.04,0.88],colorC:[1.0,0.48,0.08],  speed:3.2,  scale:1.8, pulse:1.0  },
-      anxious:   { colorA:[0.42,0.38,0.18],colorB:[0.28,0.28,0.12],colorC:[0.58,0.48,0.22], speed:2.1,  scale:5.8, pulse:0.78 },
+      happy:     { colorA:[1.0,0.72,0.08], colorB:[1.0,0.42,0.04], colorC:[0.98,0.95,0.25], speed:1.8,  scale:3.2, pulse:0.85, depth:-0.40 },
+      sad:       { colorA:[0.08,0.18,0.58],colorB:[0.18,0.32,0.68],colorC:[0.04,0.08,0.38], speed:0.38, scale:5.5, pulse:0.18, depth: 0.30 },
+      angry:     { colorA:[0.92,0.08,0.04],colorB:[0.72,0.28,0.0], colorC:[1.0,0.0,0.08],   speed:2.9,  scale:2.2, pulse:1.0,  depth:-0.20 },
+      fearful:   { colorA:[0.28,0.08,0.38],colorB:[0.12,0.04,0.28],colorC:[0.48,0.18,0.52], speed:2.4,  scale:6.5, pulse:0.9,  depth: 0.55 },
+      surprised: { colorA:[0.15,0.88,0.98],colorB:[0.78,0.94,1.0], colorC:[0.08,0.58,0.92], speed:2.6,  scale:1.8, pulse:0.95, depth: 0.25 },
+      disgusted: { colorA:[0.32,0.42,0.08],colorB:[0.18,0.28,0.04],colorC:[0.48,0.38,0.12], speed:0.55, scale:4.2, pulse:0.32, depth: 0.30 },
+      neutral:   { colorA:[0.22,0.48,0.42],colorB:[0.14,0.36,0.38],colorC:[0.32,0.52,0.48], speed:0.75, scale:4.8, pulse:0.38, depth: 0.00 },
+      calm:      { colorA:[0.08,0.48,0.52],colorB:[0.12,0.58,0.48],colorC:[0.04,0.32,0.44], speed:0.32, scale:6.2, pulse:0.22, depth: 0.00 },
+      excited:   { colorA:[0.92,0.08,0.58],colorB:[0.68,0.04,0.88],colorC:[1.0,0.48,0.08],  speed:3.2,  scale:1.8, pulse:1.0,  depth:-0.50 },
+      anxious:   { colorA:[0.42,0.38,0.18],colorB:[0.28,0.28,0.12],colorC:[0.58,0.48,0.22], speed:2.1,  scale:5.8, pulse:0.78, depth: 0.40 },
     };
 
     // ── renderer ──────────────────────────────────────────────────────────────
@@ -103,11 +103,13 @@
         float finFactor = smoothstep(0.18, 0.28, abs(position.z));
         float tipFactor = smoothstep(0.30, 0.44, abs(position.x));
         vec3 disp = vec3(0.0);
-        // Fin: slow undulation travelling along body, ~9 s per cycle
-        disp.y += sin(position.x * 12.0 + uTime * 0.70 + position.z * 4.0) * 0.011 * finFactor;
-        // Tentacle tips: gentle vertical and lateral sway, ~15–20 s per cycle
-        disp.y += sin(position.x *  5.0 + uTime * 0.42) * 0.016 * tipFactor;
-        disp.z += sin(position.x *  4.2 + uTime * 0.31 + 1.8) * 0.011 * tipFactor;
+        // Fin: undulation wave along body, ~4 s per cycle — feels like natural swimming
+        disp.y += sin(position.x * 12.0 + uTime * 1.60 + position.z * 4.0) * 0.013 * finFactor;
+        disp.y += sin(position.x *  7.0 + uTime * 1.10 + position.z * 2.5 + 2.1) * 0.007 * finFactor;
+        // Tentacle tips: layered sway, ~6–8 s per cycle
+        disp.y += sin(position.x *  5.0 + uTime * 1.00) * 0.016 * tipFactor;
+        disp.y += sin(position.x *  3.2 + uTime * 0.68 + 3.1) * 0.009 * tipFactor;
+        disp.z += sin(position.x *  4.2 + uTime * 0.75 + 1.8) * 0.012 * tipFactor;
 
         vec4 wp    = modelMatrix * vec4(position + disp, 1.0);
         vWorldPos  = wp.xyz;
@@ -119,6 +121,7 @@
       uniform float uTime;
       uniform vec3  uColorA,uColorB,uColorC;
       uniform float uSpeed,uScale,uPulse;
+      uniform float uWave,uFlash;
       uniform vec3  uCamPos;
       varying vec3  vNormal,vObjNormal,vPosition;
       varying vec2  vUv;
@@ -181,6 +184,16 @@
         baseColor=mix(baseColor,vec3(0.60,0.48,0.80)*1.5,ventral*fr*0.32);
         baseColor+=pow(1.0-max(dot(norm,viewDir),0.0),2.6)*uColorC*0.30;
         baseColor*=(0.72+0.28*smoothstep(0.0,0.38,min(vUv.x,1.0-vUv.x)));
+
+        // Chromatophore wave — sweeps head-to-tail on emotion change
+        float waveCenter = mix(-0.50, 0.50, clamp(uWave, 0.0, 1.0));
+        float waveGlow   = smoothstep(0.20, 0.0, abs(vPosition.x - waveCenter))
+                         * step(0.0, uWave) * (1.0 - step(1.0, uWave));
+        baseColor = mix(baseColor, uColorA * 2.4 + uColorC * 0.6, waveGlow * 0.65);
+
+        // Startle flash — brief bright pulse on high-intensity emotion
+        baseColor = mix(baseColor, uColorB * 2.2, uFlash * 0.45);
+
         gl_FragColor=vec4(baseColor,1.0);
       }
     `;
@@ -195,6 +208,8 @@
       uSpeed:{value:EMOTIONS.neutral.speed},
       uScale:{value:EMOTIONS.neutral.scale},
       uPulse:{value:EMOTIONS.neutral.pulse},
+      uWave: {value:-1.0},
+      uFlash:{value:0.0},
       uCamPos:{value:new THREE.Vector3()},
     };
     const skinMat=new THREE.ShaderMaterial({vertexShader:skinVert,fragmentShader:skinFrag,uniforms,side:THREE.DoubleSide});
@@ -240,7 +255,7 @@
       // Shift slightly left on screen. After cuttle.rotation.y = -PI/2,
       // local +Z maps to world -X, so increasing model.position.z moves
       // the model left in the final view.
-      model.position.z += 0.40;
+      model.position.z += 1.00;
 
       // Flip 180° so head faces camera (head is at -X in the original model space;
       // after the flip it sits at +X, which the cuttle rotation maps to world +Z).
@@ -304,9 +319,16 @@
     const lerpA=(a,b,t)=>a.map((v,i)=>lerp(v,b[i],t));
     const L=0.022;
 
+    let lastEmotion='neutral';
     function transitionTo(key){
       const e=EMOTIONS[key]||EMOTIONS.neutral;
+      if(key===lastEmotion)return; // only react to changes
+      lastEmotion=key;
       tgt={...e,colorA:[...e.colorA],colorB:[...e.colorB],colorC:[...e.colorC]};
+      // Chromatophore wave on every emotion change
+      uniforms.uWave.value=0.0;
+      // Startle flash for high-intensity emotions
+      if(e.pulse>0.80) uniforms.uFlash.value=1.0;
       const tag=document.getElementById('emotion-tag');
       tag.textContent=key;tag.classList.remove('fade-in');void tag.offsetWidth;tag.classList.add('fade-in');
     }
@@ -329,10 +351,12 @@
 
     // ── render loop ───────────────────────────────────────────────────────────
     const clock=new THREE.Clock();
+    let prevT=0;
 
     function animate(){
       requestAnimationFrame(animate);
       const t=clock.getElapsedTime();
+      const delta=t-prevT; prevT=t;
 
       // state
       cur.colorA=lerpA(cur.colorA,tgt.colorA,L*5);
@@ -341,6 +365,7 @@
       cur.speed =lerp(cur.speed,tgt.speed,L*2.5);
       cur.scale =lerp(cur.scale,tgt.scale,L*2.5);
       cur.pulse =lerp(cur.pulse,tgt.pulse,L*2.5);
+      cur.depth =lerp(cur.depth,tgt.depth,L*2.5);
       uniforms.uTime.value=t;
       uniforms.uColorA.value.set(...cur.colorA);
       uniforms.uColorB.value.set(...cur.colorB);
@@ -352,6 +377,13 @@
       uniforms.uPulse.value=Math.min(1.0,cur.pulse+rhythmPulse);
       uniforms.uCamPos.value.copy(camera.position);
 
+      // Chromatophore wave — advances until complete, then stays at -1 (inactive)
+      if(uniforms.uWave.value>=0&&uniforms.uWave.value<1.0){
+        uniforms.uWave.value=Math.min(1.0,uniforms.uWave.value+delta*0.75);
+      }
+      // Startle flash — decays quickly
+      uniforms.uFlash.value=Math.max(0,uniforms.uFlash.value-delta*3.5);
+
       // micro-tremors — high-freq water texture
       const microX=Math.sin(t*6.7)*0.0015+Math.sin(t*11.3)*0.00065;
       const microY=Math.sin(t*7.9+0.7)*0.00115+Math.sin(t*13.1)*0.0005;
@@ -362,14 +394,16 @@
       trackX+=(trackTargetX-trackX)*0.0075;
       trackY+=(trackTargetY-trackY)*0.0075;
 
-      // random current impulse — fires every 2–5.5 s
+      // drift impulse — small random current, occasional jet burst (15% chance)
       if(t>nextImpulseT){
-        const a=Math.random()*Math.PI*2,s=0.0065+Math.random()*0.015;
-        velX+=Math.cos(a)*s; velY+=(Math.random()-0.5)*s*0.7; velZ+=(Math.random()-0.5)*s*0.22;
-        nextImpulseT=t+2.0+Math.random()*3.5;
+        const a=Math.random()*Math.PI*2;
+        const isJet=Math.random()<0.15;
+        const s=isJet?0.042+Math.random()*0.048:0.0065+Math.random()*0.015;
+        velX+=Math.cos(a)*s; velY+=(Math.random()-0.5)*s*0.7; velZ+=(Math.random()-0.5)*s*(isJet?0.5:0.22);
+        nextImpulseT=t+(isJet?4+Math.random()*6:2.0+Math.random()*3.5);
       }
-      // spring toward face target + damping
-      velX+=(trackX*2.0-posX)*0.0005; velY+=(trackY*(-1.2)-posY)*0.0005; velZ+=(0-posZ)*0.00085;
+      // spring — face tracking in XY, emotion depth target in Z
+      velX+=(trackX*2.0-posX)*0.0005; velY+=(trackY*(-1.2)-posY)*0.0005; velZ+=(cur.depth-posZ)*0.00085;
       velX*=0.97; velY*=0.97; velZ*=0.97;
       posX+=velX; posY+=velY; posZ+=velZ;
 
@@ -377,8 +411,10 @@
       const leanRoll=Math.sin(t*0.13)*0.00165+microRoll-velX*0.03;
       const leanPit =Math.sin(t*0.17+1.1)*0.00165-velY*0.02;
 
+      // idle yaw — slow irregular look-around, ±24° over ~25–45 s cycles
+      const idleYaw=Math.sin(t*0.25)*0.18+Math.sin(t*0.37+1.4)*0.09;
       cuttle.position.set(posX+microX,posY+microY,posZ+microZ);
-      cuttle.rotation.y=-Math.PI/2;
+      cuttle.rotation.y=-Math.PI/2+idleYaw;
       cuttle.rotation.x=leanPit;
       cuttle.rotation.z=leanRoll;
 
