@@ -1,0 +1,11 @@
+Model Information:
+* title:	Cuttlefish
+* source:	https://sketchfab.com/3d-models/cuttlefish-ebeffc518e38486e82afe1b500015c83
+* author:	fengthefern (https://sketchfab.com/fengthefern)
+
+Model License:
+* license type:	CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
+* requirements:	Author must be credited. Commercial use is allowed.
+
+If you use this 3D model in your project be sure to copy paste this credit wherever you share it:
+This work is based on "Cuttlefish" (https://sketchfab.com/3d-models/cuttlefish-ebeffc518e38486e82afe1b500015c83) by fengthefern (https://sketchfab.com/fengthefern) licensed under CC-BY-4.0 (http://creativecommons.org/licenses/by/4.0/)
