@@ -89,6 +89,7 @@
 
     // ── skin shader ───────────────────────────────────────────────────────────
     const skinVert = `
+      uniform float uTime, uSpeed;
       varying vec3 vNormal, vObjNormal, vPosition;
       varying vec2 vUv;
       varying vec3 vWorldPos;
@@ -97,7 +98,18 @@
         vObjNormal = normalize(normal);
         vPosition  = position;
         vUv        = uv;
-        vec4 wp    = modelMatrix * vec4(position,1.0);
+
+        // Fin undulation — outer Z edges of body ripple vertically
+        float finFactor = smoothstep(0.18, 0.28, abs(position.z));
+        // Tentacle/tip sway — both ends of the body (head tentacles + tail mantle tip)
+        float tipFactor = smoothstep(0.30, 0.44, abs(position.x));
+        float spd = max(uSpeed, 0.55);
+        vec3 disp = vec3(0.0);
+        disp.y += sin(position.x * 14.0 + uTime * spd * 1.3 + position.z * 5.0) * 0.012 * finFactor;
+        disp.y += sin(position.x *  6.0 + uTime * spd * 0.65) * 0.018 * tipFactor;
+        disp.z += sin(position.x *  5.0 + uTime * spd * 0.48 + 1.2) * 0.012 * tipFactor;
+
+        vec4 wp    = modelMatrix * vec4(position + disp, 1.0);
         vWorldPos  = wp.xyz;
         gl_Position = projectionMatrix * viewMatrix * wp;
       }
@@ -187,6 +199,8 @@
     };
     const skinMat=new THREE.ShaderMaterial({vertexShader:skinVert,fragmentShader:skinFrag,uniforms,side:THREE.DoubleSide});
 
+    const eyeMat=new THREE.MeshStandardMaterial({color:0x030408,roughness:0.05,metalness:0.30,envMapIntensity:0.8});
+
     // ── cuttlefish group ──────────────────────────────────────────────────────
     const cuttle    = new THREE.Group();
     const modelWrap = new THREE.Group(); // child: breathe scale applied here
@@ -194,13 +208,26 @@
     scene.add(cuttle);
 
     // ── load glTF model ───────────────────────────────────────────────────────
+    const eyeMeshes = [];
+
     new GLTFLoader().load('./cuttlefish/scene.gltf', gltf => {
       const model = gltf.scene;
 
+      // Head is at -X in model space; cuttle.rotation.y=-PI/2 maps -X → -Z (away from camera).
+      // Flip 180° so head ends up at +X, which then maps to +Z (facing camera).
+      model.rotation.y = Math.PI;
+
       model.traverse(child => {
         if (!child.isMesh) return;
-        child.material    = skinMat;
         child.frustumCulled = false;
+        // The 2 small meshes (118 verts each) are the eyes — apply dark material.
+        // The large mesh (1086 verts) is the body — apply the shimmer shader.
+        if (child.geometry.attributes.position.count < 200) {
+          child.material = eyeMat;
+          eyeMeshes.push(child);
+        } else {
+          child.material = skinMat;
+        }
       });
 
       // Centre at origin
@@ -209,7 +236,7 @@
       model.position.sub(centre);
 
       // Scale longest axis to ~5 units (matches original procedural size)
-      const size   = box.getSize(new THREE.Vector3());
+      const size    = box.getSize(new THREE.Vector3());
       const longest = Math.max(size.x, size.y, size.z);
       model.scale.setScalar(5.0 / longest);
 
@@ -366,6 +393,12 @@
       godRayMats.forEach(m=>{
         m.uniforms.uTime.value=t;
         m.uniforms.uCol.value.set(cur.colorC[0]*0.28+0.03,cur.colorC[1]*0.22+0.20,cur.colorC[2]*0.32+0.32);
+      });
+
+      // subtle eye movement — tiny organic drift so they don't look frozen
+      eyeMeshes.forEach((eye, i) => {
+        eye.rotation.x = Math.sin(t * 0.9 + i * 0.8) * 0.04;
+        eye.rotation.z = Math.sin(t * 0.6 + i * 1.3) * 0.03;
       });
 
       controls.update();
